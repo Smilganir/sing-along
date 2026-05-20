@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.env
+backend/.env
+backend/data/
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.db
+
+# Takeout personal data — large files, never commit
+data/
+*.mp4
+*.json.gz

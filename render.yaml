@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: sing-along-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: ENV
+        value: prod
+      - key: PYTHON_VERSION
+        value: 3.12.5
+      - key: SESSION_COOKIE_CROSS_SITE
+        value: "true"
+      - key: ADMIN_TOKEN
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false

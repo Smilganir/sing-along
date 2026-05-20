@@ -1,0 +1,67 @@
+.app-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.65rem 1.5rem 0;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.app-nav-spacer {
+  flex: 1;
+}
+
+.app-nav-btn {
+  border-radius: 999px;
+  padding: 0.45rem 1rem;
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+  color: var(--app-muted);
+}
+
+.app-nav-btn--primary {
+  background: var(--app-accent-strong);
+  color: #fff;
+  border-color: var(--app-accent-strong);
+}
+
+.app-nav-btn:hover {
+  background: var(--app-surface-hover);
+  color: var(--app-text);
+}
+
+.app-nav-btn--primary:hover {
+  background: var(--app-accent-strong);
+  color: #fff;
+}
+
+.app-nav-link {
+  border-radius: 999px;
+  padding: 0.45rem 1rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none;
+  color: var(--app-muted);
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+}
+
+.app-nav-link--active {
+  background: var(--app-accent-strong);
+  color: #fff;
+  border-color: var(--app-accent-strong);
+}
+
+.app-nav-link:hover {
+  text-decoration: none;
+  background: var(--app-surface-hover);
+  color: var(--app-text);
+}
+
+.app-nav-link--active:hover {
+  background: var(--app-accent-strong);
+  color: #fff;
+}

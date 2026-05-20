@@ -1,0 +1,69 @@
+import { useEffect, useState } from 'react';
+
+import AdminUnlockModal from './components/AdminUnlockModal.jsx';
+import { AuthProvider, useAuth } from './context/AuthContext.jsx';
+import Import from './pages/Import.jsx';
+import Sing from './pages/Sing.jsx';
+import { parseRouteBase } from './utils/routes.js';
+import './App.css';
+
+function useRoute() {
+  const [route, setRoute] = useState(() => parseRouteBase(window.location.hash));
+
+  useEffect(() => {
+    function onHashChange() {
+      setRoute(parseRouteBase(window.location.hash));
+    }
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+
+  return route === 'library' ? 'library' : 'sing';
+}
+
+function AppNav() {
+  const route = useRoute();
+  const { isAdmin, setShowUnlock, logout } = useAuth();
+
+  return (
+    <nav className="app-nav">
+      <a
+        href="#sing"
+        className={`app-nav-link ${route === 'sing' ? 'app-nav-link--active' : ''}`}
+      >
+        Sing
+      </a>
+      <a
+        href="#library"
+        className={`app-nav-link ${route === 'library' ? 'app-nav-link--active' : ''}`}
+      >
+        Library
+      </a>
+      <span className="app-nav-spacer" />
+      {isAdmin ? (
+        <button type="button" className="app-nav-btn" onClick={() => logout()}>
+          Log out
+        </button>
+      ) : (
+        <button type="button" className="app-nav-btn app-nav-btn--primary" onClick={() => setShowUnlock(true)}>
+          Unlock admin
+        </button>
+      )}
+    </nav>
+  );
+}
+
+function AppRoutes() {
+  const route = useRoute();
+  return route === 'library' ? <Import /> : <Sing />;
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppNav />
+      <AppRoutes />
+      <AdminUnlockModal />
+    </AuthProvider>
+  );
+}
