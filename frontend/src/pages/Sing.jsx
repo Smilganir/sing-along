@@ -21,7 +21,7 @@ const SORT_OPTIONS = [  { id: 'play_count', label: 'Most played' },
 ];
 
 const STATUS_FILTERS = [
-  { id: 'all', label: 'All', status: 'ready,needs_chords' },
+  { id: 'all', label: 'All', status: null },
   { id: 'ready', label: 'Ready only', status: 'ready' },
   { id: 'needs_chords', label: 'Lyrics only (needs chords)', status: 'needs_chords' },
 ];
@@ -65,7 +65,7 @@ export default function Sing() {
 
   const langFilter = activeTab === 'he' || activeTab === 'en' ? activeTab : undefined;
   const apiSort = sortBy === 'favorites' ? 'play_count' : sortBy;
-  const statusParam = STATUS_FILTERS.find((f) => f.id === statusFilter)?.status ?? 'ready,needs_chords';
+  const statusParam = STATUS_FILTERS.find((f) => f.id === statusFilter)?.status ?? null;
   const totalPages = Math.max(1, Math.ceil(totalSongs / PAGE_SIZE));
   const rangeStart = totalSongs === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const canSyncRoom = selectedSong?.source_status === 'ready';
