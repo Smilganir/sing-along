@@ -232,6 +232,12 @@ def cmd_retry(args: argparse.Namespace) -> None:
             print_retry_dry_run(songs, statuses)
             return
 
+        if args.reset_attempts:
+            for song in songs:
+                song.enrich_attempts = 0
+            db.commit()
+            print(f"Reset enrich_attempts for {len(songs)} song(s).")
+
         status_label = ", ".join(statuses)
         scope = f" {args.language}" if args.language else ""
         print(f"\nRetrying {len(songs)}{scope} song(s) ({status_label}) with force=True…\n")
@@ -385,6 +391,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     retry.add_argument("--dry-run", action="store_true", help="List candidates without enriching")
     retry.add_argument("--delay", type=float, default=0.5, help="Delay between songs (default: 0.5)")
+    retry.add_argument(
+        "--reset-attempts",
+        action="store_true",
+        help="Reset enrich_attempts counter before retrying",
+    )
     retry.set_defaults(func=cmd_retry)
 
     one = subparsers.add_parser("one", help="Enrich a single song by ID")

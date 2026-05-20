@@ -218,24 +218,6 @@ def fetch_nagnu(title: str, artist: str) -> ChordSheetResult | None:
     )
 
 
-def fetch_chords(title: str, artist: str, language: str) -> ChordSheetResult | None:
-    if language == "he":
-        lyrics_fallback: ChordSheetResult | None = None
-        for fetcher in (fetch_tab4u, fetch_nagnu, fetch_negina):
-            try:
-                result = fetcher(title, artist)
-            except Exception:
-                result = None
-            if not result or len(result.content) < 40:
-                continue
-            if result.has_chords:
-                return result
-            if lyrics_fallback is None or len(result.content) > len(lyrics_fallback.content):
-                lyrics_fallback = result
-        return lyrics_fallback
-    return fetch_echords(title, artist)
-
-
 ALLOWED_CHORD_HOSTS: dict[str, str] = {
     "www.tab4u.com": "tab4u",
     "tab4u.com": "tab4u",
@@ -438,6 +420,108 @@ def fetch_chords_from_url(source_url: str) -> ChordSheetResult:
         source=source,
         source_url=page_url,
         has_chords=_looks_like_chords(content),
+    )
+
+
+def _collect_chord_results(
+    title: str,
+    artist: str,
+    fetchers: tuple,
+) -> ChordSheetResult | None:
+    lyrics_fallback: ChordSheetResult | None = None
+    for fetcher in fetchers:
+        try:
+            result = fetcher(title, artist)
+        except Exception:
+            result = None
+        if not result or len(result.content) < 40:
+            continue
+        if result.has_chords:
+            return result
+        if lyrics_fallback is None or len(result.content) > len(lyrics_fallback.content):
+            lyrics_fallback = result
+    return lyrics_fallback
+
+
+def _pick_ultimate_guitar_url(html: str, title: str, artist: str) -> str | None:
+    title_key = slugify(clean_title_for_search(title, artist))
+    artist_key = slugify(clean_artist_name(artist))
+    if len(title_key) < 3:
+        return None
+
+    candidates: list[tuple[int, str]] = []
+    for match in re.finditer(r"https://tabs\.ultimate-guitar\.com/tab/[^\s\"'<>]+", html):
+        url = unescape(match.group(0)).split("&quot;")[0].split('"')[0].rstrip("\\")
+        slug = url.rsplit("/", 1)[-1].lower()
+        if title_key[:4] not in slug.replace("-", ""):
+            continue
+        score = 2
+        if artist_key and artist_key[:3] in slug.replace("-", ""):
+            score += 3
+        if "-chords-" in slug:
+            score += 2
+        candidates.append((score, url))
+
+    if not candidates:
+        return None
+    candidates.sort(key=lambda item: (-item[0], len(item[1])))
+    return candidates[0][1]
+
+
+def fetch_ultimate_guitar(title: str, artist: str) -> ChordSheetResult | None:
+    from urllib.parse import quote
+
+    query = quote(f"{clean_title_for_search(title, artist)} {clean_artist_name(artist)}".strip())
+    search_url = f"https://www.ultimate-guitar.com/search.php?search_type=title&value={query}"
+    html, _ = _fetch_page_html(search_url)
+    tab_url = _pick_ultimate_guitar_url(html, title, artist)
+    if not tab_url:
+        return None
+    return fetch_chords_from_url(tab_url)
+
+
+def fetch_guitartuna(title: str, artist: str) -> ChordSheetResult | None:
+    query = f"{clean_title_for_search(title, artist)} {clean_artist_name(artist)}".strip()
+    response = HTTP.get(
+        "https://guitartuna.com/chords",
+        params={"search": query},
+        headers=HEADERS,
+        timeout=30,
+    )
+    if not response.ok:
+        return None
+
+    title_key = slugify(clean_title_for_search(title, artist))
+    artist_key = slugify(clean_artist_name(artist))
+    if len(title_key) < 3:
+        return None
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    for link in soup.find_all("a", href=True):
+        href = link["href"]
+        if "/chords/" not in href or "easy-guitar-chords" not in href:
+            continue
+        slug = href.split("/chords/")[-1].split("?")[0].lower()
+        if title_key[:4] not in slug.replace("-", ""):
+            continue
+        if artist_key and artist_key[:3] not in slug.replace("-", ""):
+            continue
+        page_url = urljoin("https://guitartuna.com", href)
+        return fetch_chords_from_url(page_url)
+    return None
+
+
+def fetch_chords(title: str, artist: str, language: str) -> ChordSheetResult | None:
+    if language == "he":
+        return _collect_chord_results(
+            title,
+            artist,
+            (fetch_tab4u, fetch_nagnu, fetch_negina, fetch_ultimate_guitar, fetch_guitartuna),
+        )
+    return _collect_chord_results(
+        title,
+        artist,
+        (fetch_echords, fetch_ultimate_guitar, fetch_guitartuna),
     )
 
 
