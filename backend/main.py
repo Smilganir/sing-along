@@ -255,12 +255,17 @@ def _room_state_out(db: Session, room: RoomState) -> RoomStateOut:
 
 @app.on_event("startup")
 def on_startup():
-    init_db()
-    db = SessionLocal()
     try:
-        _ensure_room_state(db)
-    finally:
-        db.close()
+        init_db()
+        db = SessionLocal()
+        try:
+            _ensure_room_state(db)
+        finally:
+            db.close()
+    except Exception as exc:
+        import traceback
+        print(f"[startup] DB init failed (will retry on first request): {exc}")
+        traceback.print_exc()
 
 
 @api.get("/health")
