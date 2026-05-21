@@ -41,12 +41,22 @@
 }
 
 .sing-room-banner {
+  display: block;
+  width: 100%;
   margin: 0 0 0.5rem;
   padding: 0.55rem 0.85rem;
   background: rgba(96, 165, 250, 0.15);
+  border: 1px solid rgba(96, 165, 250, 0.35);
   border-radius: 8px;
   font-size: 0.92rem;
   color: var(--sing-text);
+  text-align: inherit;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.sing-room-banner:hover {
+  background: rgba(96, 165, 250, 0.25);
 }
 
 .sing-view-toggles {
@@ -156,6 +166,10 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
+.sing-drawer-backdrop {
+  display: none;
+}
+
 .sing-sidebar-expand {
   position: fixed;
   top: 50%;
@@ -234,29 +248,6 @@
   flex-direction: column;
   gap: 0.55rem;
   margin-bottom: 0.75rem;
-}
-
-.sing-tabs {
-  display: flex;
-  gap: 0.35rem;
-  flex-wrap: wrap;
-}
-
-.sing-tab {
-  border: 1px solid var(--sing-border);
-  background: var(--sing-bg);
-  border-radius: 999px;
-  padding: 0.35rem 0.75rem;
-  font-size: 0.82rem;
-  font-weight: 600;
-  cursor: pointer;
-  color: var(--sing-text);
-}
-
-.sing-tab--active {
-  background: var(--sing-accent);
-  color: #fff;
-  border-color: var(--sing-accent);
 }
 
 .sing-search {
@@ -792,6 +783,7 @@
 
 @media (max-width: 900px) {
   .sing-page {
+    --sing-lyrics-size: 1.05rem;
     padding: 0.75rem 0.85rem 1.25rem;
     overflow-x: clip;
   }
@@ -815,25 +807,54 @@
     grid-template-columns: 1fr;
   }
 
+  .sing-drawer-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    background: rgba(0, 0, 0, 0.55);
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    animation: sing-drawer-fade 0.2s ease;
+  }
+
   .sing-sidebar {
-    position: static;
-    max-height: none;
-    padding: 0.6rem 0.7rem;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: min(85vw, 360px);
+    height: 100vh;
+    max-height: 100vh;
+    padding: 0.85rem;
+    margin: 0;
+    border-radius: 0 14px 14px 0;
+    box-shadow: 4px 0 18px rgba(0, 0, 0, 0.45);
+    z-index: 60;
+    transform: translateX(0);
+    transition: transform 0.25s ease;
+    overflow-y: auto;
   }
 
   .sing-sidebar--collapsed {
-    display: none;
+    display: flex;
+    transform: translateX(-105%);
+    pointer-events: none;
+    box-shadow: none;
   }
 
   .sing-sidebar-expand {
-    position: static;
-    transform: none;
-    writing-mode: horizontal-tb;
-    width: 100%;
-    border-left: 1px solid var(--sing-border);
-    border-radius: 10px;
-    margin-bottom: 0.6rem;
-    padding: 0.6rem 1rem;
+    position: fixed;
+    top: 50%;
+    left: 0;
+    transform: translateY(-50%);
+    writing-mode: vertical-rl;
+    border-left: 0;
+    border-radius: 0 10px 10px 0;
+    width: auto;
+    padding: 0.75rem 0.45rem;
+    margin: 0;
+    z-index: 40;
   }
 
   .sing-toolbar {
@@ -842,11 +863,15 @@
   }
 
   .sing-song-list {
-    max-height: calc(3 * 56px);
+    max-height: none;
   }
 
   .sing-song-item {
     padding: 0.4rem 0.55rem;
+  }
+
+  .sing-sheet-chords {
+    font-size: 0.85rem;
   }
 
   .sing-song-info strong,
@@ -881,4 +906,9 @@
   .sing-sheet-wrap {
     max-height: none;
   }
+}
+
+@keyframes sing-drawer-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }

@@ -53,16 +53,29 @@ function scrollSheetToAnchor(container, anchor) {
   return true;
 }
 
-const SORT_OPTIONS = [  { id: 'play_count', label: 'Most played' },
+const SORT_OPTIONS = [
+  { id: 'play_count', label: 'Most played' },
   { id: 'last_played_at', label: 'Recently played' },
   { id: 'favorites', label: 'Favorites' },
 ];
 
 const STATUS_FILTERS = [
-  { id: 'all', label: 'All', status: null },
-  { id: 'ready', label: 'Ready only', status: 'ready' },
-  { id: 'needs_chords', label: 'Lyrics only (needs chords)', status: 'needs_chords' },
+  { id: 'all', label: 'All' },
+  { id: 'ready', label: 'Ready only' },
+  { id: 'needs_chords', label: 'Lyrics only (needs chords)' },
 ];
+
+const LANGUAGE_OPTIONS = [
+  { id: 'all', label: 'All languages' },
+  { id: 'en', label: 'English' },
+  { id: 'he', label: 'Hebrew' },
+];
+
+function isMobileViewport() {
+  return typeof window !== 'undefined'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia('(max-width: 900px)').matches;
+}
 
 function formatEnrichHistoryTooltip(history) {
   if (!history?.length) return '';
@@ -235,9 +248,15 @@ export default function Sing() {
     try {
       const detail = await getSong(songId);
       setSelectedSong(detail);
+      if (isMobileViewport()) setSidebarOpen(false);
     } catch {
       setSelectedSong(null);
     }
+  }
+
+  async function jumpToRoomSong() {
+    if (!roomState?.song_id) return;
+    await openSong(roomState.song_id);
   }
 
   async function syncToRoom() {
@@ -455,11 +474,16 @@ export default function Sing() {
         </div>
       </header>
 
-      {roomState?.song_id && (
-        <p className="sing-room-banner">
-          Room song: <strong>{roomState.title}</strong>
+      {roomState?.song_id && !isOnRoomSong && (
+        <button
+          type="button"
+          className="sing-room-banner"
+          onClick={jumpToRoomSong}
+          title="Jump to the room song"
+        >
+          Go to room song: <strong>{roomState.title}</strong>
           {roomState.artist ? ` — ${roomState.artist}` : ''}
-        </p>
+        </button>
       )}
 
       <p className="sing-personal-note">
@@ -467,6 +491,14 @@ export default function Sing() {
         {isAdmin ? ' Use Sync room to share the current song with everyone.' : ' Ask an admin to sync the room song.'}
       </p>
       <div className={`sing-layout ${sidebarOpen ? '' : 'sing-layout--sidebar-collapsed'}`}>
+        {sidebarOpen && (
+          <button
+            type="button"
+            className="sing-drawer-backdrop"
+            aria-label="Close song list"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
         {!sidebarOpen && (
           <button
             type="button"
@@ -494,26 +526,23 @@ export default function Sing() {
           </div>
 
           <div className="sing-toolbar">
-            <div className="sing-tabs" role="tablist" aria-label="Language filter">
-              {[
-                { id: 'all', label: 'All' },
-                { id: 'he', label: 'Hebrew' },
-                { id: 'en', label: 'English' },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={activeTab === tab.id}
-                  className={`sing-tab ${activeTab === tab.id ? 'sing-tab--active' : ''}`}
-                  onClick={() => setActiveTab(tab.id)}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-
             <div className="sing-filters-row">
+              <label className="sing-select-filter">
+                <span className="sing-select-filter-label">Lang:</span>
+                <select
+                  className="sing-select-filter-control"
+                  value={activeTab}
+                  onChange={(e) => setActiveTab(e.target.value)}
+                  aria-label="Filter by language"
+                >
+                  {LANGUAGE_OPTIONS.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
               <label className="sing-select-filter">
                 <span className="sing-select-filter-label">Sort:</span>
                 <select
