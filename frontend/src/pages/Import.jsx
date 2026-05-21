@@ -27,6 +27,7 @@ const EMPTY_FORM = {
   artist: '',
   language: 'auto',
   youtube_url: '',
+  source_url: '',
   play_count: '0',
 };
 
@@ -151,14 +152,27 @@ export default function Import() {
 
     setSaving(true);
     setError('');
+    const sourceUrl = form.source_url.trim() || null;
     try {
-      await addSong({
+      const created = await addSong({
         title: form.title.trim(),
         artist: form.artist.trim(),
         language: form.language === 'auto' ? null : form.language,
         youtube_url: form.youtube_url.trim() || null,
+        source_url: sourceUrl,
         play_count: Number(form.play_count) || 0,
       });
+
+      if (sourceUrl) {
+        try {
+          await enrichSongFromUrl(created.id, sourceUrl);
+        } catch (err) {
+          setError(`Song saved, but chords fetch failed: ${err.message}`);
+          await loadData();
+          return;
+        }
+      }
+
       setForm(EMPTY_FORM);
       setShowAddForm(false);
       await loadData();
@@ -389,6 +403,16 @@ export default function Import() {
                 value={form.youtube_url}
                 onChange={(e) => setForm({ ...form, youtube_url: e.target.value })}
                 placeholder="https://music.youtube.com/watch?v=..."
+              />
+            </label>
+            <label>
+              Lyrics / chords URL (optional)
+              <input
+                type="text"
+                value={form.source_url}
+                onChange={(e) => setForm({ ...form, source_url: e.target.value })}
+                placeholder="https://guitartuna.com/... or tabs.ultimate-guitar.com/..."
+                dir="ltr"
               />
             </label>
             <label>

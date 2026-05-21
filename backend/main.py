@@ -92,6 +92,7 @@ class SongCreateIn(BaseModel):
     artist: str = Field(default="", max_length=512)
     language: Literal["he", "en"] | None = None
     youtube_url: str | None = None
+    source_url: str | None = Field(default=None, max_length=2048)
     play_count: int = Field(default=0, ge=0)
 
 
@@ -429,6 +430,16 @@ def create_song(
     db.add(song)
     db.commit()
     db.refresh(song)
+
+    source_url = (payload.source_url or "").strip()
+    if source_url:
+        try:
+            enrich_song_from_url(song, source_url)
+        except Exception as exc:
+            song.enrich_error = str(exc)
+        db.commit()
+        db.refresh(song)
+
     return _song_out(song)
 
 
