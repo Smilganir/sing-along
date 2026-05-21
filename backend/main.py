@@ -4,7 +4,6 @@ from uuid import uuid4
 
 import asyncio
 import json
-import time
 
 from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, Header, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -32,6 +31,13 @@ from db.database import SessionLocal, get_db, init_db
 from db.models import RoomState, Song, SyncRun
 from services.enrichment import enrich_song, enrich_song_from_url, enrich_top_songs
 from services.http_cache import bust_cache_for_song, clear_http_cache
+from services.room_broadcast import (
+    clear_live_scroll,
+    current_state_seq,
+    get_live_scroll,
+    set_live_scroll,
+    wait_room_change,
+)
 from services.takeout_sync import detect_language, thumbnail_for, video_id
 
 app = FastAPI(title="Sing-Along API", version="0.5.0")
@@ -127,10 +133,16 @@ class RoomStateOut(BaseModel):
     updated_at: datetime | None = None
     title: str | None = None
     artist: str | None = None
+    scroll_anchor: str | None = None
+    scroll_updated_at: datetime | None = None
 
 
 class RoomSyncIn(BaseModel):
     song_id: int = Field(ge=1)
+
+
+class RoomScrollIn(BaseModel):
+    scroll_anchor: str = Field(min_length=1, max_length=64)
 
 
 class LoginIn(BaseModel):
@@ -241,16 +253,32 @@ def _ensure_room_state(db: Session) -> RoomState:
 
 
 def _room_state_out(db: Session, room: RoomState) -> RoomStateOut:
+    live_anchor, live_scroll_at = get_live_scroll()
+    scroll_anchor = live_anchor if live_anchor is not None else room.scroll_anchor
+    scroll_updated_at = live_scroll_at
+
     if not room.song_id:
-        return RoomStateOut(song_id=None, updated_at=room.updated_at)
+        return RoomStateOut(
+            song_id=None,
+            updated_at=room.updated_at,
+            scroll_anchor=scroll_anchor,
+            scroll_updated_at=scroll_updated_at,
+        )
     song = _get_active_song(db, room.song_id)
     if not song:
-        return RoomStateOut(song_id=None, updated_at=room.updated_at)
+        return RoomStateOut(
+            song_id=None,
+            updated_at=room.updated_at,
+            scroll_anchor=scroll_anchor,
+            scroll_updated_at=scroll_updated_at,
+        )
     return RoomStateOut(
         song_id=song.id,
         updated_at=room.updated_at,
         title=song.title,
         artist=song.artist,
+        scroll_anchor=scroll_anchor,
+        scroll_updated_at=scroll_updated_at,
     )
 
 
@@ -549,26 +577,23 @@ def get_room_state(db: Session = Depends(get_db)):
 
 
 async def _room_state_event_stream():
-    last_sent_at: datetime | None = None
-    last_keepalive = time.monotonic()
+    last_seq = -1
     try:
         while True:
             db = SessionLocal()
             try:
                 room = _ensure_room_state(db)
-                if last_sent_at != room.updated_at:
+                seq = current_state_seq()
+                if seq != last_seq:
                     state = _room_state_out(db, room)
                     yield f"data: {state.model_dump_json()}\n\n"
-                    last_sent_at = room.updated_at
+                    last_seq = seq
+                else:
+                    yield ": keepalive\n\n"
             finally:
                 db.close()
 
-            now = time.monotonic()
-            if now - last_keepalive >= 15:
-                yield ": keepalive\n\n"
-                last_keepalive = now
-
-            await asyncio.sleep(1)
+            await wait_room_change(timeout=15.0)
     except asyncio.CancelledError:
         raise
 
@@ -595,9 +620,21 @@ def sync_room(payload: RoomSyncIn, db: Session = Depends(get_db), _: AdminDep = 
 
     room = _ensure_room_state(db)
     room.song_id = song.id
+    room.scroll_anchor = None
     room.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(room)
+    clear_live_scroll()
+    return _room_state_out(db, room)
+
+
+@api.post("/room/scroll", response_model=RoomStateOut)
+def scroll_room(payload: RoomScrollIn, db: Session = Depends(get_db), _: AdminDep = None):
+    room = _ensure_room_state(db)
+    if not room.song_id:
+        raise HTTPException(status_code=400, detail="No room song is synced")
+
+    set_live_scroll(payload.scroll_anchor.strip())
     return _room_state_out(db, room)
 
 

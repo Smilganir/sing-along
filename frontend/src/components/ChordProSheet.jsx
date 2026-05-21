@@ -1,4 +1,4 @@
-import { parseChordPro } from '../utils/chordpro.js';
+import { lyricAnchorHash, parseChordPro } from '../utils/chordpro.js';
 
 export default function ChordProSheet({ text, language, lyricsOnly }) {
   const blocks = parseChordPro(text, { lyricsOnly });
@@ -11,7 +11,11 @@ export default function ChordProSheet({ text, language, lyricsOnly }) {
   return (
     <div className={`sing-sheet ${isHebrew ? 'sing-sheet--he' : 'sing-sheet--en'}`}>
       {blocks.map((block, index) => (
-        <div key={index} className="sing-verse-block">
+        <div
+          key={index}
+          className="sing-verse-block"
+          data-anchor={lyricAnchorHash(block.lyrics)}
+        >
           {block.chords && (
             <pre
               className="sing-sheet-chords"

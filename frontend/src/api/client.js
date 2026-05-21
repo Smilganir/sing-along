@@ -150,3 +150,11 @@ export function syncRoom(songId) {
     body: JSON.stringify({ song_id: songId }),
   });
 }
+
+export function scrollRoom(scrollAnchor) {
+  return request('/room/scroll', {
+    method: 'POST',
+    headers: jsonHeaders(),
+    body: JSON.stringify({ scroll_anchor: scrollAnchor }),
+  });
+}

@@ -585,6 +585,58 @@
   border-color: #166534;
 }
 
+.sing-lead-scroll-btn {
+  border: 1px solid var(--sing-border);
+  border-radius: 999px;
+  padding: 0.55rem 1rem;
+  background: var(--sing-surface);
+  color: var(--sing-text);
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.sing-lead-scroll-btn--on {
+  background: #7c2d12;
+  border-color: #ea580c;
+  color: #fff;
+}
+
+.sing-follow-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 0.65rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: 8px;
+  background: rgba(96, 165, 250, 0.12);
+  font-size: 0.85rem;
+}
+
+.sing-follow-status {
+  color: #86efac;
+  font-weight: 600;
+}
+
+.sing-follow-status--paused {
+  color: #fcd34d;
+}
+
+.sing-follow-resume {
+  border: 1px solid var(--sing-accent);
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  background: transparent;
+  color: var(--sing-accent);
+  font-weight: 600;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.sing-follow-resume:hover {
+  background: rgba(96, 165, 250, 0.15);
+}
+
 .sing-yt-link {
   font-size: 0.88rem;
   color: var(--sing-accent);

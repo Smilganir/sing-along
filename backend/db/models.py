@@ -102,6 +102,7 @@ class RoomState(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     song_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    scroll_anchor: Mapped[str | None] = mapped_column(String(64), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
     )

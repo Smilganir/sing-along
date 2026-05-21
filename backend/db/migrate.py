@@ -26,6 +26,30 @@ def _column_already_exists(exc: Exception) -> bool:
     return "duplicate column" in message or "already exists" in message
 
 
+ROOM_STATE_MIGRATIONS = [
+    "ALTER TABLE room_state ADD COLUMN scroll_anchor VARCHAR(64)",
+]
+
+
+def _apply_column_migrations(connection, table: str, statements: list[str]) -> None:
+    inspector = inspect(engine)
+    if table not in inspector.get_table_names():
+        return
+    existing = {column["name"] for column in inspector.get_columns(table)}
+    for statement in statements:
+        column_name = statement.split("ADD COLUMN ")[1].split()[0]
+        if column_name in existing:
+            continue
+        try:
+            connection.execute(text(statement))
+            existing.add(column_name)
+        except (ProgrammingError, OperationalError) as exc:
+            if _column_already_exists(exc):
+                existing.add(column_name)
+                continue
+            raise
+
+
 def run_migrations() -> None:
     inspector = inspect(engine)
     if "songs" not in inspector.get_table_names():
@@ -45,3 +69,4 @@ def run_migrations() -> None:
                     existing.add(column_name)
                     continue
                 raise
+        _apply_column_migrations(connection, "room_state", ROOM_STATE_MIGRATIONS)

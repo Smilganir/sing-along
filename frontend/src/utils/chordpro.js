@@ -117,6 +117,16 @@ export function parseChordPro(text, { lyricsOnly = false } = {}) {
   return blocks.filter((block) => block.lyrics);
 }
 
+/** Stable hash for a lyric line — shared scroll anchor across chord/lyrics-only views. */
+export function lyricAnchorHash(lyrics) {
+  const normalized = (lyrics || '').trim().replace(/\s+/g, ' ');
+  let hash = 5381;
+  for (let i = 0; i < normalized.length; i += 1) {
+    hash = ((hash << 5) + hash) ^ normalized.charCodeAt(i);
+  }
+  return (hash >>> 0).toString(36);
+}
+
 export function youtubeEmbedUrl(youtubeUrl) {
   if (!youtubeUrl) return null;
   try {

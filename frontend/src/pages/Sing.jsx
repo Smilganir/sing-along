@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ChordProSheet from '../components/ChordProSheet.jsx';
 import { EnrichmentStatusBadge, EnrichmentStatusIcon } from '../components/EnrichmentStatus.jsx';
 
-import { getSong, getSongs, subscribeRoomState, syncRoom } from '../api/client.js';
+import { getSong, getSongs, scrollRoom, subscribeRoomState, syncRoom } from '../api/client.js';
 
 import { useAuth } from '../context/AuthContext.jsx';
 import { useLocalStorage } from '../hooks/useLocalStorage.js';
@@ -14,6 +14,37 @@ import { transposeSheet } from '../utils/transpose.js';
 import './Sing.css';
 
 const PAGE_SIZE = 50;
+const SCROLL_EMIT_MS = 100;
+const SUPPRESS_SCROLL_MS = 400;
+
+function getTopmostAnchor(container) {
+  if (!container) return null;
+  const blocks = container.querySelectorAll('[data-anchor]');
+  const containerTop = container.getBoundingClientRect().top;
+  let bestAnchor = null;
+  let bestDistance = Infinity;
+
+  blocks.forEach((block) => {
+    const rect = block.getBoundingClientRect();
+    if (rect.bottom <= containerTop) return;
+    const distance = Math.abs(rect.top - containerTop);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestAnchor = block.getAttribute('data-anchor');
+    }
+  });
+
+  return bestAnchor;
+}
+
+function scrollSheetToAnchor(container, anchor) {
+  if (!container || !anchor) return false;
+  const escaped = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(anchor) : anchor;
+  const block = container.querySelector(`[data-anchor="${escaped}"]`);
+  if (!block) return false;
+  block.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  return true;
+}
 
 const SORT_OPTIONS = [  { id: 'play_count', label: 'Most played' },
   { id: 'last_played_at', label: 'Recently played' },
@@ -53,6 +84,8 @@ export default function Sing() {
   const [easyMode, setEasyMode] = useState(false);
   const [roomState, setRoomState] = useState(null);
   const [syncing, setSyncing] = useState(false);
+  const [leadScroll, setLeadScroll] = useState(false);
+  const [followMode, setFollowMode] = useState('following');
   const [transposeSemitones, setTransposeSemitones] = useState(0);
 
   const [lyricsOnly, setLyricsOnly] = useLocalStorage('singalong-lyrics-only', false);
@@ -62,6 +95,20 @@ export default function Sing() {
   const [statusFilter, setStatusFilter] = useLocalStorage('singalong-status-filter', 'all');
 
   const lastRoomUpdated = useRef(null);
+  const lastRoomSongId = useRef(null);
+  const lastScrollUpdated = useRef(null);
+  const lastEmittedAnchor = useRef(null);
+  const scrollEmitTimer = useRef(null);
+  const suppressScrollUntil = useRef(0);
+  const sheetWrapRef = useRef(null);
+  const followModeRef = useRef(followMode);
+  const leadScrollRef = useRef(leadScroll);
+  const isYoutubeFullscreen = useRef(false);
+  const selectedSongIdRef = useRef(null);
+
+  followModeRef.current = followMode;
+  leadScrollRef.current = leadScroll;
+  selectedSongIdRef.current = selectedSong?.id ?? null;
 
   const langFilter = activeTab === 'he' || activeTab === 'en' ? activeTab : undefined;
   const apiSort = sortBy === 'favorites' ? 'play_count' : sortBy;
@@ -72,6 +119,23 @@ export default function Sing() {
   const isRoomSynced = Boolean(
     selectedSong && roomState?.song_id && roomState.song_id === selectedSong.id,
   );
+  const isOnRoomSong = Boolean(
+    selectedSong && roomState?.song_id && roomState.song_id === selectedSong.id,
+  );
+
+  const applyRoomScroll = useCallback((anchor) => {
+    const container = sheetWrapRef.current;
+    if (!container || !anchor) return;
+    suppressScrollUntil.current = Date.now() + SUPPRESS_SCROLL_MS;
+    scrollSheetToAnchor(container, anchor);
+  }, []);
+
+  const resumeFollowing = useCallback(() => {
+    setFollowMode('following');
+    if (roomState?.scroll_anchor) {
+      applyRoomScroll(roomState.scroll_anchor);
+    }
+  }, [applyRoomScroll, roomState?.scroll_anchor]);
 
   const loadList = useCallback(async () => {
     setLoading(true);
@@ -115,21 +179,30 @@ export default function Sing() {
 
       setRoomState(state);
 
-      if (!state.song_id || state.updated_at === lastRoomUpdated.current) {
-        return;
-      }
+      const songChanged = Boolean(
+        state.song_id
+        && (state.song_id !== lastRoomSongId.current
+          || state.updated_at !== lastRoomUpdated.current),
+      );
 
-      lastRoomUpdated.current = state.updated_at;
-      getSong(state.song_id)
-        .then((detail) => {
-          if (!cancelled) {
-            setSelectedSong(detail);
-            setEasyMode(false);
-          }
-        })
-        .catch(() => {
-          /* best-effort room sync */
-        });
+      if (songChanged) {
+        lastRoomUpdated.current = state.updated_at;
+        lastRoomSongId.current = state.song_id;
+        lastScrollUpdated.current = null;
+        lastEmittedAnchor.current = null;
+        setFollowMode('following');
+        setLeadScroll(false);
+        getSong(state.song_id)
+          .then((detail) => {
+            if (!cancelled) {
+              setSelectedSong(detail);
+              setEasyMode(false);
+            }
+          })
+          .catch(() => {
+            /* best-effort room sync */
+          });
+      }
     }
 
     const unsubscribe = subscribeRoomState(
@@ -164,6 +237,11 @@ export default function Sing() {
       const state = await syncRoom(selectedSong.id);
       setRoomState(state);
       lastRoomUpdated.current = state.updated_at;
+      lastRoomSongId.current = state.song_id;
+      lastScrollUpdated.current = null;
+      lastEmittedAnchor.current = null;
+      setFollowMode('following');
+      setLeadScroll(false);
     } catch {
       /* ignore */
     } finally {
@@ -182,6 +260,94 @@ export default function Sing() {
     }
     return text;
   }, [selectedSong, easyMode, lyricsOnly, transposeSemitones]);
+
+  useEffect(() => {
+    if (!roomState?.scroll_updated_at || !roomState.scroll_anchor) return;
+    if (roomState.scroll_updated_at === lastScrollUpdated.current) return;
+    lastScrollUpdated.current = roomState.scroll_updated_at;
+
+    if (leadScrollRef.current) return;
+    if (followModeRef.current !== 'following') return;
+    if (selectedSongIdRef.current !== roomState.song_id) return;
+    if (isYoutubeFullscreen.current) return;
+
+    applyRoomScroll(roomState.scroll_anchor);
+  }, [
+    roomState?.scroll_anchor,
+    roomState?.scroll_updated_at,
+    roomState?.song_id,
+    applyRoomScroll,
+  ]);
+
+  useEffect(() => {
+    function onFullscreenChange() {
+      isYoutubeFullscreen.current = Boolean(document.fullscreenElement);
+      if (isYoutubeFullscreen.current) {
+        setFollowMode('paused');
+      }
+    }
+
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
+  }, []);
+
+  useEffect(() => {
+    const container = sheetWrapRef.current;
+    if (!container) return undefined;
+
+    function onUserScroll() {
+      if (Date.now() < suppressScrollUntil.current) return;
+      if (leadScrollRef.current) return;
+      if (selectedSongIdRef.current !== lastRoomSongId.current) return;
+      if (isYoutubeFullscreen.current) return;
+      setFollowMode('paused');
+    }
+
+    container.addEventListener('scroll', onUserScroll, { passive: true });
+    return () => container.removeEventListener('scroll', onUserScroll);
+  }, [selectedSong?.id, sheetText]);
+
+  useEffect(() => {
+    const container = sheetWrapRef.current;
+    if (!container || !leadScroll || !isAdmin || !isRoomSynced) return undefined;
+
+    function scheduleEmit(anchor) {
+      if (!anchor || anchor === lastEmittedAnchor.current) return;
+      clearTimeout(scrollEmitTimer.current);
+      scrollEmitTimer.current = setTimeout(() => {
+        lastEmittedAnchor.current = anchor;
+        scrollRoom(anchor).catch(() => {});
+      }, SCROLL_EMIT_MS);
+    }
+
+    function updateAnchor() {
+      if (Date.now() < suppressScrollUntil.current) return;
+      const anchor = getTopmostAnchor(container);
+      if (anchor) scheduleEmit(anchor);
+    }
+
+    const blocks = container.querySelectorAll('[data-anchor]');
+    const observer = new IntersectionObserver(
+      () => updateAnchor(),
+      { root: container, threshold: [0, 0.01, 0.1, 0.5, 1] },
+    );
+
+    blocks.forEach((block) => observer.observe(block));
+    container.addEventListener('scroll', updateAnchor, { passive: true });
+    updateAnchor();
+
+    return () => {
+      observer.disconnect();
+      container.removeEventListener('scroll', updateAnchor);
+      clearTimeout(scrollEmitTimer.current);
+    };
+  }, [leadScroll, isAdmin, isRoomSynced, sheetText, selectedSong?.id]);
+
+  useEffect(() => {
+    if (!isRoomSynced) {
+      setLeadScroll(false);
+    }
+  }, [isRoomSynced]);
 
   useEffect(() => {
     setTransposeSemitones(0);
@@ -522,6 +688,20 @@ export default function Sing() {
                       {easyMode ? 'Original' : 'Easy version'}
                     </button>
                   )}
+                  {isAdmin && isRoomSynced && (
+                    <button
+                      type="button"
+                      className={`sing-lead-scroll-btn ${leadScroll ? 'sing-lead-scroll-btn--on' : ''}`}
+                      onClick={() => setLeadScroll((on) => !on)}
+                      title={
+                        leadScroll
+                          ? 'Stop broadcasting your scroll position'
+                          : 'Broadcast your scroll position to everyone on this song'
+                      }
+                    >
+                      {leadScroll ? '● Leading scroll' : 'Lead scroll'}
+                    </button>
+                  )}
                   {selectedSong.youtube_url && (
                     <a
                       className="sing-yt-link"
@@ -548,7 +728,25 @@ export default function Sing() {
                 </div>
               )}
 
-              <div className="sing-sheet-wrap">
+              <div className="sing-sheet-wrap" ref={sheetWrapRef}>
+                {isOnRoomSong && !leadScroll && (
+                  <div className="sing-follow-bar">
+                    {followMode === 'following' ? (
+                      <span className="sing-follow-status">Following room scroll</span>
+                    ) : (
+                      <>
+                        <span className="sing-follow-status sing-follow-status--paused">Paused</span>
+                        <button
+                          type="button"
+                          className="sing-follow-resume"
+                          onClick={resumeFollowing}
+                        >
+                          Resume
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
                 <ChordProSheet
                   text={sheetText}
                   language={selectedSong.language}
