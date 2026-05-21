@@ -765,7 +765,7 @@ export default function Sing() {
                 </div>
               )}
 
-              <div className="sing-sheet-wrap" ref={sheetWrapRef}>
+              <div className="sing-sheet-area">
                 {isOnRoomSong && !leadScroll && (
                   <div className="sing-follow-bar">
                     <span
@@ -789,11 +789,13 @@ export default function Sing() {
                     </button>
                   </div>
                 )}
-                <ChordProSheet
-                  text={sheetText}
-                  language={selectedSong.language}
-                  lyricsOnly={lyricsOnly}
-                />
+                <div className="sing-sheet-wrap" ref={sheetWrapRef}>
+                  <ChordProSheet
+                    text={sheetText}
+                    language={selectedSong.language}
+                    lyricsOnly={lyricsOnly}
+                  />
+                </div>
               </div>
             </>
           )}

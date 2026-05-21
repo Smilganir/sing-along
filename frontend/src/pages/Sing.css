@@ -573,19 +573,27 @@
   color: #fff;
 }
 
+.sing-sheet-area {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
 .sing-follow-bar {
   position: sticky;
   top: 0;
-  z-index: 5;
+  z-index: 10;
+  flex-shrink: 0;
   display: inline-flex;
   width: fit-content;
   max-width: 100%;
   align-items: center;
   gap: 0.65rem;
-  margin: 0 0 0.65rem;
+  margin: 0 0 0.5rem;
   padding: 0.4rem 0.75rem;
   border-radius: 999px;
-  background: rgba(15, 23, 42, 0.94);
+  background: rgba(15, 23, 42, 0.96);
   border: 1px solid rgba(96, 165, 250, 0.35);
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.45);
   backdrop-filter: blur(6px);
@@ -684,6 +692,8 @@
 }
 
 .sing-sheet-wrap {
+  flex: 1;
+  min-height: 0;
   max-height: calc(100vh - 14rem);
   overflow-y: auto;
   overflow-x: hidden;
