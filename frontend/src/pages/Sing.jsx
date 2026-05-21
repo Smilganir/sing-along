@@ -401,7 +401,6 @@ export default function Sing() {
     <div className="sing-page">
       <header className="sing-header">
         <div>
-          <h1>Sing-Along</h1>
           <p className="sing-subtitle">Pick a song and sing together</p>
         </div>
         <div className="sing-view-toggles" role="group" aria-label="Your display options">

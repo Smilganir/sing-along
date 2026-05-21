@@ -26,29 +26,33 @@ function AppNav() {
   const { isAdmin, setShowUnlock, logout } = useAuth();
 
   return (
-    <nav className="app-nav">
-      <a
-        href="#sing"
-        className={`app-nav-link ${route === 'sing' ? 'app-nav-link--active' : ''}`}
-      >
-        Sing
-      </a>
-      <a
-        href="#library"
-        className={`app-nav-link ${route === 'library' ? 'app-nav-link--active' : ''}`}
-      >
-        Library
-      </a>
-      <span className="app-nav-spacer" />
-      {isAdmin ? (
-        <button type="button" className="app-nav-btn" onClick={() => logout()}>
-          Log out
-        </button>
-      ) : (
-        <button type="button" className="app-nav-btn app-nav-btn--primary" onClick={() => setShowUnlock(true)}>
-          Unlock admin
-        </button>
-      )}
+    <nav className="app-nav" aria-label="Main navigation">
+      <div className="app-nav-start">
+        <a
+          href="#sing"
+          className={`app-nav-link ${route === 'sing' ? 'app-nav-link--active' : ''}`}
+        >
+          Sing
+        </a>
+        <a
+          href="#library"
+          className={`app-nav-link ${route === 'library' ? 'app-nav-link--active' : ''}`}
+        >
+          Library
+        </a>
+      </div>
+      <h1 className="app-nav-title">Sing-Along</h1>
+      <div className="app-nav-end">
+        {isAdmin ? (
+          <button type="button" className="app-nav-btn" onClick={() => logout()}>
+            Log out
+          </button>
+        ) : (
+          <button type="button" className="app-nav-btn app-nav-btn--primary" onClick={() => setShowUnlock(true)}>
+            Unlock admin
+          </button>
+        )}
+      </div>
     </nav>
   );
 }

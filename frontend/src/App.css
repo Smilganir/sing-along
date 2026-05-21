@@ -1,14 +1,50 @@
 .app-nav {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.5rem;
   padding: 0.65rem 1.5rem 0;
   max-width: 1200px;
   margin: 0 auto;
 }
 
-.app-nav-spacer {
-  flex: 1;
+.app-nav-start {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  justify-self: start;
+}
+
+.app-nav-title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--app-text);
+  justify-self: center;
+  text-align: center;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.app-nav-end {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  justify-self: end;
+  min-width: 0;
+}
+
+@media (max-width: 520px) {
+  .app-nav {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .app-nav-title {
+    font-size: 1.05rem;
+  }
 }
 
 .app-nav-btn {

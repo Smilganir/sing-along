@@ -311,7 +311,6 @@ export default function Import() {
     <div className="import-page">
       <header className="import-header">
         <div>
-          <h1>Sing-Along</h1>
           <p className="import-subtitle">Library setup — browse, edit, and curate songs</p>
         </div>
         {isAdmin && (
