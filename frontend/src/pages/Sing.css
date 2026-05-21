@@ -715,7 +715,7 @@
 .sing-sheet-wrap {
   max-height: calc(100vh - 14rem);
   overflow-y: auto;
-  overflow-x: auto;
+  overflow-x: hidden;
   min-width: 0;
   -webkit-overflow-scrolling: touch;
 }
@@ -746,10 +746,12 @@
 .sing-sheet-lyrics {
   margin: 0;
   padding: 0;
-  white-space: pre;
+  white-space: pre-wrap;
   background: transparent;
   border: 0;
-  overflow-x: auto;
+  overflow-x: visible;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   max-width: 100%;
   min-width: 0;
 }
@@ -876,14 +878,5 @@
 
   .sing-sheet-wrap {
     max-height: none;
-    overflow-x: hidden;
-  }
-
-  .sing-sheet-chords,
-  .sing-sheet-lyrics {
-    white-space: pre-wrap;
-    overflow-x: visible;
-    overflow-wrap: anywhere;
-    word-break: break-word;
   }
 }
