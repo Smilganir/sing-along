@@ -214,19 +214,19 @@
 }
 
 .sing-sidebar-toggle {
-  border: 1px solid var(--sing-border);
+  border: 1px solid var(--sing-accent);
   border-radius: 999px;
-  padding: 0.3rem 0.65rem;
-  background: var(--sing-bg);
-  color: var(--sing-muted);
-  font-size: 0.78rem;
-  font-weight: 600;
+  padding: 0.35rem 0.85rem;
+  background: var(--sing-accent);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 700;
   cursor: pointer;
+  letter-spacing: 0.02em;
 }
 
 .sing-sidebar-toggle:hover {
-  color: var(--sing-text);
-  border-color: var(--sing-accent);
+  filter: brightness(1.05);
 }
 
 .sing-toolbar {
@@ -259,29 +259,6 @@
   border-color: var(--sing-accent);
 }
 
-.sing-sort {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-}
-
-.sing-sort-btn {
-  border: 1px solid var(--sing-border);
-  background: var(--sing-bg);
-  border-radius: 999px;
-  padding: 0.35rem 0.65rem;
-  font-size: 0.78rem;
-  font-weight: 600;
-  cursor: pointer;
-  color: var(--sing-text);
-}
-
-.sing-sort-btn--active {
-  background: rgba(37, 99, 235, 0.12);
-  color: var(--sing-accent);
-  border-color: var(--sing-accent);
-}
-
 .sing-search {
   width: 100%;
   border: 1px solid var(--sing-border);
@@ -293,29 +270,35 @@
   font: inherit;
 }
 
-.sing-status-filter {
+.sing-filters-row {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  flex-wrap: wrap;
+  gap: 0.4rem;
 }
 
-.sing-status-filter-label {
-  font-size: 0.82rem;
+.sing-select-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 0 0 auto;
+}
+
+.sing-select-filter-label {
+  font-size: 0.78rem;
   font-weight: 600;
   color: var(--sing-muted);
   flex-shrink: 0;
 }
 
-.sing-status-filter-select {
-  flex: 1;
-  min-width: 0;
+.sing-select-filter-control {
+  width: auto;
   border: 1px solid var(--sing-border);
   border-radius: 999px;
-  padding: 0.45rem 0.75rem;
+  padding: 0.4rem 0.65rem;
   background: var(--sing-bg);
   color: var(--sing-text);
   font: inherit;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
 }
@@ -809,13 +792,22 @@
 
 @media (max-width: 900px) {
   .sing-page {
-    padding: 1rem 1rem 1.5rem;
+    padding: 0.75rem 0.85rem 1.25rem;
     overflow-x: clip;
   }
 
-  .sing-room-banner,
+  .sing-header h1 {
+    font-size: 1.35rem;
+  }
+
+  .sing-subtitle,
   .sing-personal-note {
+    display: none;
+  }
+
+  .sing-room-banner {
     word-break: break-word;
+    margin-bottom: 0.4rem;
   }
 
   .sing-layout,
@@ -826,6 +818,7 @@
   .sing-sidebar {
     position: static;
     max-height: none;
+    padding: 0.6rem 0.7rem;
   }
 
   .sing-sidebar--collapsed {
@@ -839,12 +832,21 @@
     width: 100%;
     border-left: 1px solid var(--sing-border);
     border-radius: 10px;
-    margin-bottom: 0.75rem;
-    padding: 0.65rem 1rem;
+    margin-bottom: 0.6rem;
+    padding: 0.6rem 1rem;
+  }
+
+  .sing-toolbar {
+    gap: 0.4rem;
+    margin-bottom: 0.5rem;
   }
 
   .sing-song-list {
-    max-height: 240px;
+    max-height: calc(3 * 56px);
+  }
+
+  .sing-song-item {
+    padding: 0.4rem 0.55rem;
   }
 
   .sing-song-info strong,

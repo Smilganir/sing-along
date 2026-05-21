@@ -95,10 +95,10 @@ export default function Sing() {
   const [followMode, setFollowMode] = useState('following');
   const [transposeSemitones, setTransposeSemitones] = useState(0);
 
-  const [lyricsOnly, setLyricsOnly] = useLocalStorage('singalong-lyrics-only', false);
+  const [lyricsOnly, setLyricsOnly] = useLocalStorage('singalong-lyrics-only-v2', true);
   const [showYoutube, setShowYoutube] = useLocalStorage('singalong-show-youtube', false);
   const [favorites] = useLocalStorage('singalong-favorites', []);
-  const [sidebarOpen, setSidebarOpen] = useLocalStorage('singalong-sidebar-open', true);
+  const [sidebarOpen, setSidebarOpen] = useLocalStorage('singalong-sidebar-open-v2', false);
   const [statusFilter, setStatusFilter] = useLocalStorage('singalong-status-filter', 'all');
 
   const lastRoomUpdated = useRef(null);
@@ -489,7 +489,7 @@ export default function Sing() {
               aria-label="Hide song list"
               title="Hide song list"
             >
-              Hide
+              Hide list ✕
             </button>
           </div>
 
@@ -513,35 +513,42 @@ export default function Sing() {
               ))}
             </div>
 
-            <div className="sing-sort" role="group" aria-label="Sort by">
-              {SORT_OPTIONS.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  className={`sing-sort-btn ${sortBy === option.id ? 'sing-sort-btn--active' : ''}`}
-                  onClick={() => setSortBy(option.id)}
+            <div className="sing-filters-row">
+              <label className="sing-select-filter">
+                <span className="sing-select-filter-label">Sort:</span>
+                <select
+                  className="sing-select-filter-control"
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  aria-label="Sort songs"
                 >
-                  {option.label}
-                  {option.id === 'favorites' && favorites.length > 0 ? ` (${favorites.length})` : ''}
-                </button>
-              ))}
-            </div>
+                  {SORT_OPTIONS.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                      {option.id === 'favorites' && favorites.length > 0
+                        ? ` (${favorites.length})`
+                        : ''}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-            <label className="sing-status-filter">
-              <span className="sing-status-filter-label">Show:</span>
-              <select
-                className="sing-status-filter-select"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                aria-label="Filter by enrichment status"
-              >
-                {STATUS_FILTERS.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+              <label className="sing-select-filter">
+                <span className="sing-select-filter-label">Show:</span>
+                <select
+                  className="sing-select-filter-control"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  aria-label="Filter by enrichment status"
+                >
+                  {STATUS_FILTERS.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
 
             <input
               type="search"
