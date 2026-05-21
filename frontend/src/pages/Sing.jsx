@@ -17,17 +17,24 @@ const PAGE_SIZE = 50;
 const SCROLL_EMIT_MS = 100;
 const SUPPRESS_SCROLL_MS = 400;
 
+function containerIsScrollHost(container) {
+  if (!container) return false;
+  return container.scrollHeight > container.clientHeight + 4;
+}
+
 function getTopmostAnchor(container) {
   if (!container) return null;
+  const referenceTop = containerIsScrollHost(container)
+    ? container.getBoundingClientRect().top
+    : 0;
   const blocks = container.querySelectorAll('[data-anchor]');
-  const containerTop = container.getBoundingClientRect().top;
   let bestAnchor = null;
   let bestDistance = Infinity;
 
   blocks.forEach((block) => {
     const rect = block.getBoundingClientRect();
-    if (rect.bottom <= containerTop) return;
-    const distance = Math.abs(rect.top - containerTop);
+    if (rect.bottom <= referenceTop) return;
+    const distance = Math.abs(rect.top - referenceTop);
     if (distance < bestDistance) {
       bestDistance = distance;
       bestAnchor = block.getAttribute('data-anchor');
@@ -317,19 +324,23 @@ export default function Sing() {
       if (anchor) scheduleEmit(anchor);
     }
 
+    const usingContainerScroll = containerIsScrollHost(container);
+    const scrollHost = usingContainerScroll ? container : window;
+    const observerRoot = usingContainerScroll ? container : null;
+
     const blocks = container.querySelectorAll('[data-anchor]');
     const observer = new IntersectionObserver(
       () => updateAnchor(),
-      { root: container, threshold: [0, 0.01, 0.1, 0.5, 1] },
+      { root: observerRoot, threshold: [0, 0.01, 0.1, 0.5, 1] },
     );
 
     blocks.forEach((block) => observer.observe(block));
-    container.addEventListener('scroll', updateAnchor, { passive: true });
+    scrollHost.addEventListener('scroll', updateAnchor, { passive: true });
     updateAnchor();
 
     return () => {
       observer.disconnect();
-      container.removeEventListener('scroll', updateAnchor);
+      scrollHost.removeEventListener('scroll', updateAnchor);
       clearTimeout(scrollEmitTimer.current);
     };
   }, [leadScroll, isAdmin, isRoomSynced, sheetText, selectedSong?.id]);
