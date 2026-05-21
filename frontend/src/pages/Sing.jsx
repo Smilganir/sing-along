@@ -130,11 +130,14 @@ export default function Sing() {
     scrollSheetToAnchor(container, anchor);
   }, []);
 
-  const resumeFollowing = useCallback(() => {
-    setFollowMode('following');
-    if (roomState?.scroll_anchor) {
-      applyRoomScroll(roomState.scroll_anchor);
-    }
+  const toggleFollowing = useCallback(() => {
+    setFollowMode((current) => {
+      const next = current === 'following' ? 'paused' : 'following';
+      if (next === 'following' && roomState?.scroll_anchor) {
+        applyRoomScroll(roomState.scroll_anchor);
+      }
+      return next;
+    });
   }, [applyRoomScroll, roomState?.scroll_anchor]);
 
   const loadList = useCallback(async () => {
@@ -294,26 +297,6 @@ export default function Sing() {
     return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
   }, []);
 
-  useEffect(() => {
-    const container = sheetWrapRef.current;
-    if (!container) return undefined;
-
-    function onUserInteract() {
-      if (leadScrollRef.current) return;
-      if (selectedSongIdRef.current !== lastRoomSongId.current) return;
-      if (isYoutubeFullscreen.current) return;
-      setFollowMode('paused');
-    }
-
-    container.addEventListener('wheel', onUserInteract, { passive: true });
-    container.addEventListener('touchmove', onUserInteract, { passive: true });
-    container.addEventListener('keydown', onUserInteract);
-    return () => {
-      container.removeEventListener('wheel', onUserInteract);
-      container.removeEventListener('touchmove', onUserInteract);
-      container.removeEventListener('keydown', onUserInteract);
-    };
-  }, [selectedSong?.id, sheetText]);
 
   useEffect(() => {
     const container = sheetWrapRef.current;
@@ -739,20 +722,25 @@ export default function Sing() {
               <div className="sing-sheet-wrap" ref={sheetWrapRef}>
                 {isOnRoomSong && !leadScroll && (
                   <div className="sing-follow-bar">
-                    {followMode === 'following' ? (
-                      <span className="sing-follow-status">Following room scroll</span>
-                    ) : (
-                      <>
-                        <span className="sing-follow-status sing-follow-status--paused">Paused</span>
-                        <button
-                          type="button"
-                          className="sing-follow-resume"
-                          onClick={resumeFollowing}
-                        >
-                          Resume
-                        </button>
-                      </>
-                    )}
+                    <span
+                      className={`sing-follow-status ${followMode === 'following' ? '' : 'sing-follow-status--paused'}`}
+                    >
+                      {followMode === 'following'
+                        ? 'Following lead scroll'
+                        : 'Not following lead scroll'}
+                    </span>
+                    <button
+                      type="button"
+                      className="sing-follow-resume"
+                      onClick={toggleFollowing}
+                      title={
+                        followMode === 'following'
+                          ? 'Stop following the lead scroll'
+                          : 'Resume following the lead scroll'
+                      }
+                    >
+                      {followMode === 'following' ? 'Stop' : 'Follow'}
+                    </button>
                   </div>
                 )}
                 <ChordProSheet
