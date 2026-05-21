@@ -8,6 +8,8 @@ __pycache__/
 .venv/
 venv/
 *.db
+*.log
+backend/logs/
 
 # Takeout personal data — large files, never commit
 data/
