@@ -262,20 +262,23 @@ export default function Sing() {
   }, [selectedSong, easyMode, lyricsOnly, transposeSemitones]);
 
   useEffect(() => {
-    if (!roomState?.scroll_updated_at || !roomState.scroll_anchor) return;
-    if (roomState.scroll_updated_at === lastScrollUpdated.current) return;
-    lastScrollUpdated.current = roomState.scroll_updated_at;
-
+    if (!roomState?.scroll_anchor) return;
     if (leadScrollRef.current) return;
     if (followModeRef.current !== 'following') return;
-    if (selectedSongIdRef.current !== roomState.song_id) return;
     if (isYoutubeFullscreen.current) return;
+    if (selectedSongIdRef.current !== roomState.song_id) return;
+
+    const stamp = roomState.scroll_updated_at || roomState.scroll_anchor;
+    if (stamp === lastScrollUpdated.current) return;
+    lastScrollUpdated.current = stamp;
 
     applyRoomScroll(roomState.scroll_anchor);
   }, [
     roomState?.scroll_anchor,
     roomState?.scroll_updated_at,
     roomState?.song_id,
+    selectedSong?.id,
+    sheetText,
     applyRoomScroll,
   ]);
 
@@ -295,16 +298,21 @@ export default function Sing() {
     const container = sheetWrapRef.current;
     if (!container) return undefined;
 
-    function onUserScroll() {
-      if (Date.now() < suppressScrollUntil.current) return;
+    function onUserInteract() {
       if (leadScrollRef.current) return;
       if (selectedSongIdRef.current !== lastRoomSongId.current) return;
       if (isYoutubeFullscreen.current) return;
       setFollowMode('paused');
     }
 
-    container.addEventListener('scroll', onUserScroll, { passive: true });
-    return () => container.removeEventListener('scroll', onUserScroll);
+    container.addEventListener('wheel', onUserInteract, { passive: true });
+    container.addEventListener('touchmove', onUserInteract, { passive: true });
+    container.addEventListener('keydown', onUserInteract);
+    return () => {
+      container.removeEventListener('wheel', onUserInteract);
+      container.removeEventListener('touchmove', onUserInteract);
+      container.removeEventListener('keydown', onUserInteract);
+    };
   }, [selectedSong?.id, sheetText]);
 
   useEffect(() => {
