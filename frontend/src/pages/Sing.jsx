@@ -112,7 +112,7 @@ export default function Sing() {
 
   const [lyricsOnly, setLyricsOnly] = useLocalStorage('singalong-lyrics-only-v2', true);
   const [showYoutube, setShowYoutube] = useLocalStorage('singalong-show-youtube', false);
-  const { favorites } = useFavorites();
+  const { favorites, isFavorite, toggleFavorite } = useFavorites();
   const [sidebarOpen, setSidebarOpen] = useLocalStorage('singalong-sidebar-open-v2', false);
   const [statusFilter, setStatusFilter] = useLocalStorage('singalong-status-filter', 'all');
 
@@ -182,7 +182,7 @@ export default function Sing() {
     } finally {
       setLoading(false);
     }
-  }, [langFilter, searchQuery, sortBy, apiSort, favorites, page, statusParam]);
+  }, [langFilter, searchQuery, sortBy, apiSort, page, statusParam, ...(sortBy === 'favorites' ? [favorites] : [])]);
 
   useEffect(() => {
     setPage(1);
@@ -599,12 +599,14 @@ export default function Sing() {
           ) : songs.length === 0 ? (
             <p className="sing-empty">
               {sortBy === 'favorites'
-                ? 'No favorites yet. Mark songs in the Library.'
+                ? 'No favorites yet. Tap the heart on a song to save it here.'
                 : 'No songs match your filters.'}
             </p>
           ) : (
             <ul className="sing-song-list">
-              {songs.map((song, index) => (
+              {songs.map((song, index) => {
+                const favorited = isFavorite(song.id);
+                return (
                 <li key={song.id} className="sing-song-row">
                   <button
                     type="button"
@@ -618,15 +620,21 @@ export default function Sing() {
                       <span>{song.artist || 'Unknown artist'}</span>
                     </span>
                     <EnrichmentStatusIcon status={song.source_status} />
-                    {favorites.includes(song.id) && (
-                      <span className="sing-song-fav" aria-label="Favorite">❤️</span>
-                    )}
                     {roomState?.song_id === song.id && (
                       <span className="sing-song-room" aria-label="Room song">🎤</span>
                     )}
                   </button>
+                  <button
+                    type="button"
+                    className={`sing-song-fav ${favorited ? 'sing-song-fav--on' : ''}`}
+                    aria-label={favorited ? 'Remove from favorites' : 'Add to favorites'}
+                    onClick={(e) => toggleFavorite(song.id, e)}
+                  >
+                    {favorited ? '❤️' : '🤍'}
+                  </button>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           )}
 
@@ -667,15 +675,25 @@ export default function Sing() {
                 <div>
                   <div className="sing-main-title-row">
                     <h2>{selectedSong.title}</h2>
-                    <EnrichmentStatusBadge status={selectedSong.source_status} />
-                    {isAdmin && selectedSong.enrich_history?.length > 0 && (
-                      <span
-                        className="sing-attempts-badge"
-                        title={formatEnrichHistoryTooltip(selectedSong.enrich_history)}
+                    <div className="sing-main-title-actions">
+                      <button
+                        type="button"
+                        className={`sing-song-fav ${isFavorite(selectedSong.id) ? 'sing-song-fav--on' : ''}`}
+                        aria-label={isFavorite(selectedSong.id) ? 'Remove from favorites' : 'Add to favorites'}
+                        onClick={() => toggleFavorite(selectedSong.id)}
                       >
-                        attempts: {selectedSong.enrich_attempts ?? selectedSong.enrich_history.length}
-                      </span>
-                    )}
+                        {isFavorite(selectedSong.id) ? '❤️' : '🤍'}
+                      </button>
+                      <EnrichmentStatusBadge status={selectedSong.source_status} />
+                      {isAdmin && selectedSong.enrich_history?.length > 0 && (
+                        <span
+                          className="sing-attempts-badge"
+                          title={formatEnrichHistoryTooltip(selectedSong.enrich_history)}
+                        >
+                          attempts: {selectedSong.enrich_attempts ?? selectedSong.enrich_history.length}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <p>{selectedSong.artist}</p>
                   <div className="sing-main-meta-links">

@@ -99,7 +99,7 @@ export default function Import() {
       if (!songError) setError('');
       setLoading(false);
     }
-  }, [langFilter, searchQuery, sortBy, apiSort, favorites, page, statusFilter]);
+  }, [langFilter, searchQuery, sortBy, apiSort, page, statusFilter, ...(sortBy === 'favorites' ? [favorites] : [])]);
 
   useEffect(() => {
     setPage(1);

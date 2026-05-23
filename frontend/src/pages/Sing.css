@@ -327,11 +327,14 @@
 }
 
 .sing-song-row {
-  display: block;
+  display: flex;
+  align-items: stretch;
+  gap: 0.15rem;
 }
 
 .sing-song-row .sing-song-item {
-  width: 100%;
+  flex: 1;
+  width: auto;
 }
 
 .sing-song-item {
@@ -399,6 +402,24 @@
 
 .sing-song-fav {
   flex-shrink: 0;
+  align-self: center;
+  border: none;
+  background: transparent;
+  font-size: 1.15rem;
+  cursor: pointer;
+  padding: 0.35rem;
+  line-height: 1;
+}
+
+.sing-song-fav--on {
+  transform: scale(1.05);
+}
+
+.sing-main-title-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .sing-status-icon {

@@ -21,22 +21,39 @@ const FavoritesContext = createContext(null);
 const LEGACY_KEY = 'singalong-favorites';
 const MIGRATED_KEY = 'singalong-favorites-migrated';
 
+function normalizeIds(ids) {
+  if (!Array.isArray(ids)) return [];
+  return [...new Set(
+    ids
+      .map((id) => Number(id))
+      .filter((id) => Number.isInteger(id) && id > 0),
+  )];
+}
+
 function readLegacyFavorites() {
   try {
     const raw = localStorage.getItem(LEGACY_KEY);
     const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed.filter((id) => Number.isInteger(id)) : [];
+    return normalizeIds(parsed);
   } catch {
     return [];
   }
 }
 
 export function FavoritesProvider({ children }) {
-  const [favorites, setFavorites] = useState([]);
+  const [favorites, setFavoritesState] = useState([]);
   const [ready, setReady] = useState(false);
   const favoritesRef = useRef(favorites);
+  const pendingToggleRef = useRef(false);
 
   favoritesRef.current = favorites;
+
+  const setFavorites = useCallback((next) => {
+    setFavoritesState((prev) => {
+      const raw = typeof next === 'function' ? next(prev) : next;
+      return normalizeIds(raw);
+    });
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -49,8 +66,8 @@ export function FavoritesProvider({ children }) {
         const migrated = localStorage.getItem(MIGRATED_KEY);
         if (!migrated) {
           const legacy = readLegacyFavorites();
-          const merged = [...new Set([...(data.ids ?? []), ...legacy])];
-          if (merged.length !== (data.ids ?? []).length) {
+          const merged = [...new Set([...normalizeIds(data.ids ?? []), ...legacy])];
+          if (merged.length !== normalizeIds(data.ids ?? []).length) {
             data = await syncFavorites(merged);
           }
           localStorage.setItem(MIGRATED_KEY, '1');
@@ -71,13 +88,14 @@ export function FavoritesProvider({ children }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [setFavorites]);
 
   useEffect(() => {
     if (!ready) return undefined;
 
     return subscribeFavorites(
       (data) => {
+        if (pendingToggleRef.current) return;
         if (Array.isArray(data.ids)) {
           setFavorites(data.ids);
         }
@@ -86,30 +104,43 @@ export function FavoritesProvider({ children }) {
         /* reconnect handled in client */
       },
     );
-  }, [ready]);
+  }, [ready, setFavorites]);
 
   const toggleFavorite = useCallback(async (songId, event) => {
     event?.stopPropagation();
-    const previous = favoritesRef.current;
-    const wasFavorite = previous.includes(songId);
-    const optimistic = wasFavorite
-      ? previous.filter((id) => id !== songId)
-      : [...previous, songId];
+    const sid = Number(songId);
+    if (!Number.isInteger(sid) || sid <= 0) return;
 
+    const previous = normalizeIds(favoritesRef.current);
+    const wasFavorite = previous.includes(sid);
+    const optimistic = wasFavorite
+      ? previous.filter((id) => id !== sid)
+      : [...previous, sid];
+
+    pendingToggleRef.current = true;
     setFavorites(optimistic);
 
     try {
       const data = wasFavorite
-        ? await removeFavorite(songId)
-        : await addFavorite(songId);
+        ? await removeFavorite(sid)
+        : await addFavorite(sid);
       setFavorites(data.ids ?? optimistic);
     } catch {
-      setFavorites(previous);
+      try {
+        const data = await getFavorites();
+        const serverIds = normalizeIds(data.ids ?? []);
+        const changed = serverIds.includes(sid) !== wasFavorite;
+        setFavorites(changed ? serverIds : previous);
+      } catch {
+        setFavorites(previous);
+      }
+    } finally {
+      pendingToggleRef.current = false;
     }
-  }, []);
+  }, [setFavorites]);
 
   const isFavorite = useCallback(
-    (songId) => favorites.includes(songId),
+    (songId) => favorites.some((id) => id === Number(songId)),
     [favorites],
   );
 
