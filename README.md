@@ -1,6 +1,6 @@
 # Sing-Along
 
-Shared sing-along app for Hebrew and English songs. Your library is built from a one-time Google Takeout import, plus songs you add manually.
+Shared sing-along app for Hebrew and English songs. Your song list is built from a one-time Google Takeout import, plus songs you add manually in **Admin**.
 
 ## Quick start
 
@@ -59,11 +59,11 @@ All JSON routes are under `/api`. Health check: `GET /health` (also `GET /api/he
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/library/status` | Song counts |
+| GET | `/api/admin/status` | Song counts (`/api/library/status` kept for compatibility) |
 | GET | `/api/songs?lang=he\|en&q=` | Ranked song list |
 | POST | `/api/songs` | Add song manually (admin) |
 | POST | `/api/auth/login` | Browser admin login |
-| GET | `/api/admin/export.json` | Full library JSON backup (admin) |
+| GET | `/api/admin/export.json` | Full song JSON backup (admin) |
 | GET | `/api/admin/db.sqlite` | SQLite file download (admin, SQLite only) |
 
 ## Production deployment

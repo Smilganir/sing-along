@@ -76,7 +76,6 @@ export function FavoritesProvider({ children }) {
           localStorage.removeItem(LEGACY_KEY);
         }
 
-        data = await getFavorites();
         if (!cancelled) {
           applyServerFavorites(data, { force: true });
         }
@@ -106,15 +105,23 @@ export function FavoritesProvider({ children }) {
   useEffect(() => {
     if (!ready) return undefined;
 
-    return subscribeFavorites(
-      (data) => {
-        if (pendingToggleRef.current) return;
-        applyServerFavorites(data);
-      },
-      () => {
-        /* reconnect handled in client */
-      },
-    );
+    let unsubscribe = null;
+    const id = setTimeout(() => {
+      unsubscribe = subscribeFavorites(
+        (data) => {
+          if (pendingToggleRef.current) return;
+          applyServerFavorites(data);
+        },
+        () => {
+          /* reconnect handled in client */
+        },
+      );
+    }, 2000);
+
+    return () => {
+      clearTimeout(id);
+      unsubscribe?.();
+    };
   }, [ready, applyServerFavorites]);
 
   const toggleFavorite = useCallback(async (songId, event) => {

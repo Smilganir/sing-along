@@ -157,10 +157,16 @@
   gap: 1rem;
   align-items: start;
   direction: ltr;
+  position: relative;
 }
 
 .sing-layout--sidebar-collapsed {
   grid-template-columns: minmax(0, 1fr);
+  --sing-expand-tab: 2.1rem;
+}
+
+.sing-layout--sidebar-collapsed .sing-main {
+  padding-left: calc(1.25rem + var(--sing-expand-tab));
 }
 
 .sing-drawer-backdrop {
@@ -171,25 +177,38 @@
   position: fixed;
   top: 50%;
   left: 0;
-  transform: translateY(-50%);
   z-index: 20;
-  border: 1px solid var(--sing-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--sing-expand-tab, 2.1rem);
+  min-height: 8.5rem;
+  padding: 0.65rem 0.4rem;
+  border: 1px solid #b5997a;
   border-left: 0;
-  border-radius: 0 10px 10px 0;
-  padding: 0.85rem 0.55rem;
-  background: var(--sing-surface);
-  color: var(--sing-text);
-  font-weight: 600;
-  font-size: 0.82rem;
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
+  border-radius: 0 8px 8px 0;
+  background: #0f172a;
+  color: #fff;
+  font-weight: 700;
+  font-size: 18px;
   cursor: pointer;
-  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.2);
+  box-shadow: none;
+  transform: translateY(-50%);
+}
+
+.sing-sidebar-expand-label {
+  display: inline-block;
+  transform: rotate(90deg);
+  transform-origin: center center;
+  white-space: nowrap;
+  line-height: 1;
+  letter-spacing: 0.02em;
 }
 
 .sing-sidebar-expand:hover {
-  background: var(--sing-bg);
-  color: var(--sing-accent);
+  background: #1e293b;
+  color: #fff;
+  border-color: #c4a989;
 }
 
 .sing-sidebar {
@@ -225,19 +244,22 @@
 }
 
 .sing-sidebar-toggle {
-  border: 1px solid var(--sing-accent);
+  border: 1px solid #b5997a;
   border-radius: 999px;
-  padding: 0.35rem 0.85rem;
-  background: var(--sing-accent);
+  padding: 0.4rem 0.65rem;
+  background: #0f172a;
   color: #fff;
-  font-size: 0.82rem;
-  font-weight: 700;
+  font-size: 0.8rem;
+  font-weight: 600;
   cursor: pointer;
   letter-spacing: 0.02em;
+  box-shadow: none;
 }
 
 .sing-sidebar-toggle:hover {
-  filter: brightness(1.05);
+  background: #1e293b;
+  color: #fff;
+  border-color: #c4a989;
 }
 
 .sing-toolbar {
@@ -339,7 +361,7 @@
 
 .sing-song-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.65rem;
   width: 100%;
   border: 1px solid transparent;
@@ -368,6 +390,7 @@
 .sing-song-room {
   flex-shrink: 0;
   font-size: 0.85rem;
+  margin-top: 0.15rem;
 }
 
 .sing-song-rank {
@@ -376,6 +399,7 @@
   font-weight: 700;
   color: var(--sing-muted);
   flex-shrink: 0;
+  padding-top: 0.1rem;
 }
 
 .sing-song-info {
@@ -386,18 +410,22 @@
 }
 
 .sing-song-info strong {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  word-break: break-word;
+  line-height: 1.3;
   font-size: 0.95rem;
 }
 
 .sing-song-info span {
   font-size: 0.82rem;
   color: var(--sing-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  word-break: break-word;
+  line-height: 1.25;
 }
 
 .sing-song-fav {
@@ -428,6 +456,7 @@
   height: 0.55rem;
   border-radius: 50%;
   display: inline-block;
+  margin-top: 0.35rem;
 }
 
 .sing-status-icon--ready {
@@ -479,17 +508,6 @@
 .sing-status-badge--imported {
   background: rgba(239, 68, 68, 0.2);
   color: #fca5a5;
-}
-
-.sing-attempts-badge {
-  border-radius: 999px;
-  padding: 0.15rem 0.55rem;
-  font-size: 0.72rem;
-  font-weight: 700;
-  white-space: nowrap;
-  background: rgba(96, 165, 250, 0.15);
-  color: var(--sing-accent);
-  cursor: help;
 }
 
 .sing-pagination {
@@ -677,14 +695,14 @@
   margin-top: 0.35rem;
 }
 
-.sing-library-link {
+.sing-admin-link {
   font-size: 0.85rem;
   font-weight: 600;
   text-decoration: none;
   color: var(--sing-muted);
 }
 
-.sing-library-link:hover {
+.sing-admin-link:hover {
   color: var(--sing-accent);
   text-decoration: underline;
 }
@@ -867,16 +885,21 @@
     box-shadow: none;
   }
 
+  .sing-layout--sidebar-collapsed .sing-main {
+    padding-left: calc(1rem + var(--sing-expand-tab, 1.9rem));
+  }
+
   .sing-sidebar-expand {
     position: fixed;
     top: 50%;
     left: 0;
     transform: translateY(-50%);
-    writing-mode: vertical-rl;
+    width: var(--sing-expand-tab, 2.1rem);
+    min-height: 8.5rem;
+    padding: 0.65rem 0.4rem;
+    font-size: 18px;
     border-left: 0;
-    border-radius: 0 10px 10px 0;
-    width: auto;
-    padding: 0.75rem 0.45rem;
+    border-radius: 0 8px 8px 0;
     margin: 0;
     z-index: 40;
   }
@@ -896,14 +919,6 @@
 
   .sing-sheet-chords {
     font-size: 0.85rem;
-  }
-
-  .sing-song-info strong,
-  .sing-song-info span {
-    white-space: normal;
-    overflow: visible;
-    text-overflow: unset;
-    word-break: break-word;
   }
 
   .sing-main {

@@ -11,7 +11,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import desc, nulls_last
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, load_only
 
 from auth import (
     SESSION_COOKIE_NAME,
@@ -91,7 +91,7 @@ class SongDetailOut(SongOut):
     enrich_history: list[dict[str, Any]] = Field(default_factory=list)
 
 
-class LibraryStatusOut(BaseModel):
+class AdminStatusOut(BaseModel):
     total_songs: int
     last_import: datetime | None
     imported_songs: int
@@ -171,6 +171,22 @@ class FavoritesSyncIn(BaseModel):
 
 AdminDep = Annotated[None, Depends(require_admin)]
 
+LIST_SONG_FIELDS = (
+    Song.id,
+    Song.yt_video_id,
+    Song.title,
+    Song.artist,
+    Song.language,
+    Song.play_count,
+    Song.last_played_at,
+    Song.thumbnail_url,
+    Song.duration_sec,
+    Song.source_status,
+    Song.chord_source,
+    Song.source_url,
+    Song.enriched_at,
+)
+
 
 def _active_songs(db: Session):
     return db.query(Song).filter(Song.deleted_at.is_(None))
@@ -203,6 +219,7 @@ def _youtube_url(song: Song) -> str | None:
 
 
 def _song_out(song: Song) -> SongOut:
+    has_sheet = song.source_status in {"ready", "needs_chords"}
     return SongOut(
         id=song.id,
         yt_video_id=song.yt_video_id,
@@ -217,7 +234,7 @@ def _song_out(song: Song) -> SongOut:
         chord_source=song.chord_source,
         source_url=song.source_url,
         enriched_at=song.enriched_at,
-        has_sheet=bool(song.chordpro_full),
+        has_sheet=has_sheet,
         youtube_url=_youtube_url(song),
     )
 
@@ -248,14 +265,14 @@ def _song_detail(song: Song) -> SongDetailOut:
     )
 
 
-def _library_status(db: Session) -> LibraryStatusOut:
+def _admin_status(db: Session) -> AdminStatusOut:
     last_run = db.query(SyncRun).order_by(SyncRun.started_at.desc()).first()
     visible = _active_songs(db)
     total_songs = visible.count()
     manual_songs = visible.filter(Song.source_status == "manual").count()
     ready_songs = visible.filter(Song.source_status == "ready").count()
     needs_chords_songs = visible.filter(Song.source_status == "needs_chords").count()
-    return LibraryStatusOut(
+    return AdminStatusOut(
         total_songs=total_songs,
         last_import=last_run.finished_at if last_run else None,
         imported_songs=total_songs - manual_songs,
@@ -369,18 +386,24 @@ def auth_me(
     return AuthMeOut(admin=is_admin_request(request, x_admin_token))
 
 
-@api.get("/library/status", response_model=LibraryStatusOut)
-def library_status(db: Session = Depends(get_db)):
-    return _library_status(db)
+@api.get("/admin/status", response_model=AdminStatusOut)
+def admin_status(db: Session = Depends(get_db)):
+    return _admin_status(db)
 
 
-@api.get("/import/status", response_model=LibraryStatusOut)
+@api.get("/library/status", response_model=AdminStatusOut)
+def library_status_compat(db: Session = Depends(get_db)):
+    return _admin_status(db)
+
+
+@api.get("/import/status", response_model=AdminStatusOut)
 def import_status_compat(db: Session = Depends(get_db)):
-    return _library_status(db)
+    return _admin_status(db)
 
 
 @api.get("/favorites", response_model=FavoritesOut)
-def list_favorites(db: Session = Depends(get_db)):
+def list_favorites(response: Response, db: Session = Depends(get_db)):
+    response.headers["Cache-Control"] = "public, max-age=15, stale-while-revalidate=60"
     return _favorites_out(db)
 
 
@@ -621,7 +644,12 @@ def list_songs(
         query = query.order_by(Song.play_count.desc(), Song.title.asc())
 
     total = query.count()
-    songs = query.offset(offset).limit(limit).all()
+    songs = (
+        query.options(load_only(*LIST_SONG_FIELDS))
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
     response.headers["Cache-Control"] = "public, max-age=30, stale-while-revalidate=300"
     return SongListOut(
         items=[_song_out(song) for song in songs],

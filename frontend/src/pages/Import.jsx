@@ -3,8 +3,7 @@ import {
   addSong,
   enrichSong,
   enrichSongFromUrl,
-  enrichTop,
-  getLibraryStatus,
+  getAdminStatus,
   getSong,
   getSongs,
   removeSong,
@@ -12,7 +11,7 @@ import {
 } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useFavorites } from '../context/FavoritesContext.jsx';
-import { parseLibrarySongId } from '../utils/routes.js';
+import { parseAdminSongId } from '../utils/routes.js';
 import './Import.css';
 
 const PAGE_SIZE = 50;
@@ -20,7 +19,14 @@ const PAGE_SIZE = 50;
 const SORT_OPTIONS = [
   { id: 'play_count', label: 'Most played' },
   { id: 'last_played_at', label: 'Recently played' },
+  { id: 'title', label: 'Name' },
   { id: 'favorites', label: 'Favorites' },
+];
+
+const LANGUAGE_OPTIONS = [
+  { id: 'all', label: 'All languages' },
+  { id: 'en', label: 'English' },
+  { id: 'he', label: 'Hebrew' },
 ];
 
 const EMPTY_FORM = {
@@ -51,7 +57,6 @@ export default function Import() {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [enriching, setEnriching] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [error, setError] = useState('');
@@ -91,8 +96,8 @@ export default function Import() {
     }
 
     try {
-      const libraryStatus = await getLibraryStatus();
-      setStatus(libraryStatus);
+      const adminStatus = await getAdminStatus();
+      setStatus(adminStatus);
     } catch (err) {
       setError(songError || err.message);
     } finally {
@@ -117,7 +122,7 @@ export default function Import() {
 
   useEffect(() => {
     function openFromHash() {
-      const songId = parseLibrarySongId();
+      const songId = parseAdminSongId();
       if (songId) openSong(songId);
     }
 
@@ -125,12 +130,6 @@ export default function Import() {
     window.addEventListener('hashchange', openFromHash);
     return () => window.removeEventListener('hashchange', openFromHash);
   }, []);
-
-  useEffect(() => {
-    if (!enriching) return undefined;
-    const timer = setInterval(loadData, 5000);
-    return () => clearInterval(timer);
-  }, [enriching, loadData]);
 
   const hebrewCount = useMemo(
     () => songs.filter((song) => song.language === 'he').length,
@@ -174,19 +173,6 @@ export default function Import() {
       setError(err.message);
     } finally {
       setSaving(false);
-    }
-  }
-
-  async function handleEnrichTop() {
-    setEnriching(true);
-    setError('');
-    try {
-      await enrichTop(100, true);
-      await loadData();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setTimeout(() => setEnriching(false), 60000);
     }
   }
 
@@ -305,18 +291,10 @@ export default function Import() {
     <div className="import-page">
       <header className="import-header">
         <div>
-          <p className="import-subtitle">Library setup — browse, edit, and curate songs</p>
+          <p className="import-subtitle">Admin — browse, edit, and curate songs</p>
         </div>
         {isAdmin && (
           <div className="import-header-actions">
-            <button
-              type="button"
-              className="import-secondary-btn"
-              onClick={handleEnrichTop}
-              disabled={enriching}
-            >
-              {enriching ? 'Fetching lyrics/chords…' : 'Fetch top 100'}
-            </button>
             <button
               type="button"
               className="import-sync-btn"
@@ -427,36 +405,40 @@ export default function Import() {
       {error && <div className="import-banner import-banner--error">{error}</div>}
 
       <div className="import-toolbar">
-        <div className="import-tabs" role="tablist" aria-label="Language filter">
-          {[
-            { id: 'all', label: 'All' },
-            { id: 'he', label: 'Hebrew' },
-            { id: 'en', label: 'English' },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              role="tab"
-              aria-selected={activeTab === tab.id}
-              className={`import-tab ${activeTab === tab.id ? 'import-tab--active' : ''}`}
-              onClick={() => setActiveTab(tab.id)}
+        <div className="import-filters-row">
+          <label className="import-select-filter">
+            <span className="import-select-filter-label">Lang:</span>
+            <select
+              className="import-select-filter-control"
+              value={activeTab}
+              onChange={(e) => setActiveTab(e.target.value)}
+              aria-label="Filter by language"
             >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-        <div className="import-sort" role="group" aria-label="Sort by">
-          {SORT_OPTIONS.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              className={`import-sort-btn ${sortBy === option.id ? 'import-sort-btn--active' : ''}`}
-              onClick={() => setSortBy(option.id)}
+              {LANGUAGE_OPTIONS.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="import-select-filter">
+            <span className="import-select-filter-label">Sort:</span>
+            <select
+              className="import-select-filter-control"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              aria-label="Sort songs"
             >
-              {option.label}
-              {option.id === 'favorites' && favorites.length > 0 ? ` (${favorites.length})` : ''}
-            </button>
-          ))}
+              {SORT_OPTIONS.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                  {option.id === 'favorites' && favorites.length > 0
+                    ? ` (${favorites.length})`
+                    : ''}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
         <input
           type="search"
@@ -686,7 +668,7 @@ export default function Import() {
             <h2 id="remove-dialog-title">Remove song?</h2>
             <p id="remove-dialog-desc">
               <strong dir={removeTarget.language === 'he' ? 'rtl' : 'ltr'}>{removeTarget.title}</strong>
-              {removeTarget.artist ? ` — ${removeTarget.artist}` : ''} will be hidden from your library.
+              {removeTarget.artist ? ` — ${removeTarget.artist}` : ''} will be hidden from the song list.
               The data stays in the database and can be restored later if needed.
             </p>
             <div className="import-modal-actions">

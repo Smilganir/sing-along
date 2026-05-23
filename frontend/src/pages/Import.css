@@ -384,6 +384,14 @@
   cursor: not-allowed;
 }
 
+.import-header-actions .import-sync-btn {
+  background: #b5997a;
+}
+
+.import-header-actions .import-sync-btn:hover {
+  background: #c4a989;
+}
+
 .import-status {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -458,60 +466,50 @@
 
 .import-toolbar {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  align-items: center;
+  flex-direction: column;
+  gap: 0.55rem;
   margin-bottom: 1rem;
 }
 
-.import-tabs {
+.import-filters-row {
   display: flex;
-  gap: 0.35rem;
-}
-
-.import-tab {
-  border: 1px solid #cbd5e1;
-  background: #fff;
-  border-radius: 999px;
-  padding: 0.45rem 0.9rem;
-  cursor: pointer;
-}
-
-.import-tab--active {
-  background: #1e293b;
-  color: #fff;
-  border-color: #1e293b;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  direction: ltr;
 }
 
 .import-search {
-  flex: 1;
+  width: 100%;
   min-width: 220px;
   border: 1px solid #cbd5e1;
   border-radius: 999px;
   padding: 0.55rem 0.95rem;
 }
 
-.import-sort {
-  display: flex;
-  flex-wrap: wrap;
+.import-select-filter {
+  display: inline-flex;
+  align-items: center;
   gap: 0.35rem;
+  flex: 0 0 auto;
 }
 
-.import-sort-btn {
-  border: 1px solid #cbd5e1;
-  background: #fff;
-  border-radius: 999px;
-  padding: 0.45rem 0.9rem;
-  cursor: pointer;
-  font-size: 0.88rem;
+.import-select-filter-label {
+  font-size: 0.78rem;
   font-weight: 600;
-  color: #475569;
+  color: #64748b;
+  flex-shrink: 0;
 }
 
-.import-sort-btn--active {
-  background: #eff6ff;
-  color: #1d4ed8;
-  border-color: #93c5fd;
+.import-select-filter-control {
+  width: auto;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  padding: 0.4rem 0.65rem;
+  background: #fff;
+  color: #1e293b;
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
 }
 
 .import-pagination {
@@ -709,9 +707,8 @@
 .import-secondary-btn,
 .import-status-card,
 .import-row,
-.import-tab,
 .import-search,
-.import-sort-btn,
+.import-select-filter-control,
 .import-sheet-panel,
 .import-add-form,
 .import-modal,
@@ -726,8 +723,7 @@
 }
 
 .import-secondary-btn,
-.import-tab,
-.import-sort-btn,
+.import-select-filter-control,
 .import-search,
 .import-sheet-editor,
 .import-add-form input,
@@ -736,16 +732,8 @@
   color: var(--app-text);
 }
 
-.import-tab--active {
-  background: var(--app-accent-strong);
-  border-color: var(--app-accent-strong);
-  color: #fff;
-}
-
-.import-sort-btn--active {
-  background: var(--app-info-bg);
-  color: var(--app-info-text);
-  border-color: var(--app-accent);
+.import-select-filter-label {
+  color: var(--app-muted);
 }
 
 .import-row-remove {

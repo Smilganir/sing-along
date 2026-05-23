@@ -44,7 +44,7 @@ export default function AdminUnlockModal() {
       >
         <h2 id="admin-unlock-title">Unlock admin</h2>
         <p className="admin-unlock-desc">
-          Enter the admin password to edit the library, sync the room, and manage songs.
+          Enter the admin password to manage songs, sync the room, and edit sheets.
         </p>
         <form onSubmit={handleSubmit}>
           <label className="admin-unlock-label" htmlFor="admin-unlock-password">

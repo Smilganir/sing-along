@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import ChordProSheet from '../components/ChordProSheet.jsx';
 import { EnrichmentStatusBadge, EnrichmentStatusIcon } from '../components/EnrichmentStatus.jsx';
 
 import { getSong, getSongs, scrollRoom, subscribeRoomState, syncRoom } from '../api/client.js';
@@ -9,10 +8,12 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useFavorites } from '../context/FavoritesContext.jsx';
 import { useLocalStorage } from '../hooks/useLocalStorage.js';
 import { youtubeEmbedUrl } from '../utils/chordpro.js';
-import { librarySongHref } from '../utils/routes.js';
+import { adminSongHref } from '../utils/routes.js';
 import { transposeSheet } from '../utils/transpose.js';
 
 import './Sing.css';
+
+const ChordProSheet = lazy(() => import('../components/ChordProSheet.jsx'));
 
 const PAGE_SIZE = 50;
 const SCROLL_EMIT_MS = 100;
@@ -79,21 +80,6 @@ function isMobileViewport() {
     && window.matchMedia('(max-width: 900px)').matches;
 }
 
-function formatEnrichHistoryTooltip(history) {
-  if (!history?.length) return '';
-  return history
-    .slice(-3)
-    .reverse()
-    .map((attempt) => {
-      const when = attempt.ts ? new Date(attempt.ts).toLocaleString() : 'unknown';
-      const source = attempt.source || '—';
-      const status = attempt.status || 'unknown';
-      const error = attempt.error ? ` — ${attempt.error}` : '';
-      return `${when} · ${source} · ${status}${error}`;
-    })
-    .join('\n');
-}
-
 export default function Sing() {
   const { isAdmin } = useAuth();
   const [songs, setSongs] = useState([]);  const [totalSongs, setTotalSongs] = useState(0);
@@ -134,7 +120,7 @@ export default function Sing() {
 
   const langFilter = activeTab === 'he' || activeTab === 'en' ? activeTab : undefined;
   const apiSort = sortBy === 'favorites' ? 'play_count' : sortBy;
-  const statusParam = STATUS_FILTERS.find((f) => f.id === statusFilter)?.status ?? null;
+  const statusParam = statusFilter === 'all' ? null : statusFilter;
   const totalPages = Math.max(1, Math.ceil(totalSongs / PAGE_SIZE));
   const rangeStart = totalSongs === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const canSyncRoom = selectedSong?.source_status === 'ready';
@@ -510,10 +496,10 @@ export default function Sing() {
             type="button"
             className="sing-sidebar-expand"
             onClick={() => setSidebarOpen(true)}
-            aria-label="Show song list"
-            title="Show song list"
+            aria-label="Show songs list"
+            title="Show songs list"
           >
-            Song list
+            <span className="sing-sidebar-expand-label">Songs List</span>
           </button>
         )}
 
@@ -685,14 +671,6 @@ export default function Sing() {
                         {isFavorite(selectedSong.id) ? '❤️' : '🤍'}
                       </button>
                       <EnrichmentStatusBadge status={selectedSong.source_status} />
-                      {isAdmin && selectedSong.enrich_history?.length > 0 && (
-                        <span
-                          className="sing-attempts-badge"
-                          title={formatEnrichHistoryTooltip(selectedSong.enrich_history)}
-                        >
-                          attempts: {selectedSong.enrich_attempts ?? selectedSong.enrich_history.length}
-                        </span>
-                      )}
                     </div>
                   </div>
                   <p>{selectedSong.artist}</p>
@@ -709,10 +687,10 @@ export default function Sing() {
                     )}
                     {isAdmin && (
                       <a
-                        href={librarySongHref(selectedSong.id)}
-                        className="sing-library-link"
-                        title="Edit in Library"
-                        aria-label={`Edit ${selectedSong.title} in Library`}
+                        href={adminSongHref(selectedSong.id)}
+                        className="sing-admin-link"
+                        title="Edit in Admin"
+                        aria-label={`Edit ${selectedSong.title} in Admin`}
                       >
                         Edit
                       </a>
@@ -815,11 +793,13 @@ export default function Sing() {
                   </div>
                 )}
                 <div className="sing-sheet-wrap" ref={sheetWrapRef}>
-                  <ChordProSheet
-                    text={sheetText}
-                    language={selectedSong.language}
-                    lyricsOnly={lyricsOnly}
-                  />
+                  <Suspense fallback={<p className="sing-sheet-empty">Loading sheet…</p>}>
+                    <ChordProSheet
+                      text={sheetText}
+                      language={selectedSong.language}
+                      lyricsOnly={lyricsOnly}
+                    />
+                  </Suspense>
                 </div>
               </div>
             </>

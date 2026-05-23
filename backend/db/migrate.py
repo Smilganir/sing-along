@@ -30,6 +30,14 @@ ROOM_STATE_MIGRATIONS = [
     "ALTER TABLE room_state ADD COLUMN scroll_anchor VARCHAR(64)",
 ]
 
+INDEX_MIGRATIONS = [
+    "CREATE INDEX IF NOT EXISTS ix_songs_deleted_at ON songs (deleted_at)",
+    "CREATE INDEX IF NOT EXISTS ix_songs_play_count ON songs (play_count DESC)",
+    "CREATE INDEX IF NOT EXISTS ix_songs_language ON songs (language)",
+    "CREATE INDEX IF NOT EXISTS ix_songs_source_status ON songs (source_status)",
+    "CREATE INDEX IF NOT EXISTS ix_songs_last_played_at ON songs (last_played_at)",
+]
+
 
 def _apply_column_migrations(connection, table: str, statements: list[str]) -> None:
     inspector = inspect(engine)
@@ -70,3 +78,8 @@ def run_migrations() -> None:
                     continue
                 raise
         _apply_column_migrations(connection, "room_state", ROOM_STATE_MIGRATIONS)
+        for statement in INDEX_MIGRATIONS:
+            try:
+                connection.execute(text(statement))
+            except (ProgrammingError, OperationalError):
+                pass

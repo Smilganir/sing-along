@@ -8,6 +8,28 @@ export const getAdminToken = () => localStorage.getItem(TOKEN_KEY);
 export const setAdminToken = (v) => localStorage.setItem(TOKEN_KEY, v);
 export const clearAdminToken = () => localStorage.removeItem(TOKEN_KEY);
 
+const readCache = new Map();
+const READ_CACHE_TTL_MS = 30_000;
+
+async function cachedGet(path, ttlMs = READ_CACHE_TTL_MS) {
+  const now = Date.now();
+  const hit = readCache.get(path);
+  if (hit && now - hit.at < ttlMs) {
+    return hit.data;
+  }
+  const data = await request(path);
+  readCache.set(path, { data, at: now });
+  return data;
+}
+
+export function invalidateReadCache(prefix = '') {
+  for (const key of readCache.keys()) {
+    if (!prefix || key.startsWith(prefix)) {
+      readCache.delete(key);
+    }
+  }
+}
+
 async function request(path, options = {}) {
   const token = getAdminToken();
   const authHeaders = token ? { 'X-Admin-Token': token } : {};
@@ -50,8 +72,8 @@ export function logoutAdmin() {
   return request('/auth/logout', { method: 'POST' });
 }
 
-export function getLibraryStatus() {
-  return request('/library/status');
+export function getAdminStatus() {
+  return request('/admin/status');
 }
 
 export function getSongs({ lang, q, sort, status, ids, limit = 50, offset = 0 } = {}) {
@@ -63,7 +85,7 @@ export function getSongs({ lang, q, sort, status, ids, limit = 50, offset = 0 } 
   if (ids?.length) params.set('ids', ids.join(','));
   params.set('limit', String(limit));
   params.set('offset', String(offset));
-  return request(`/songs?${params.toString()}`);
+  return cachedGet(`/songs?${params.toString()}`);
 }
 
 export function getSong(id) {
@@ -75,12 +97,6 @@ export function addSong(song) {
     method: 'POST',
     headers: jsonHeaders(),
     body: JSON.stringify(song),
-  });
-}
-
-export function enrichTop(limit = 100, background = true) {
-  return request(`/enrich/top?limit=${limit}&background=${background}`, {
-    method: 'POST',
   });
 }
 
@@ -175,23 +191,29 @@ export function scrollRoom(scrollAnchor) {
 }
 
 export function getFavorites() {
-  return request('/favorites');
+  return cachedGet('/favorites', 15_000);
 }
 
-export function addFavorite(songId) {
-  return request(`/favorites/${songId}`, { method: 'POST' });
+export async function addFavorite(songId) {
+  const data = await request(`/favorites/${songId}`, { method: 'POST' });
+  invalidateReadCache('/favorites');
+  return data;
 }
 
-export function removeFavorite(songId) {
-  return request(`/favorites/${songId}`, { method: 'DELETE' });
+export async function removeFavorite(songId) {
+  const data = await request(`/favorites/${songId}`, { method: 'DELETE' });
+  invalidateReadCache('/favorites');
+  return data;
 }
 
-export function syncFavorites(ids) {
-  return request('/favorites/sync', {
+export async function syncFavorites(ids) {
+  const data = await request('/favorites/sync', {
     method: 'POST',
     headers: jsonHeaders(),
     body: JSON.stringify({ ids }),
   });
+  invalidateReadCache('/favorites');
+  return data;
 }
 
 export function subscribeFavorites(onMessage, onError) {

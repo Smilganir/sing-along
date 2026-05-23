@@ -3,10 +3,10 @@ import { Suspense, lazy, useEffect, useState } from 'react';
 import AdminUnlockModal from './components/AdminUnlockModal.jsx';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import { FavoritesProvider } from './context/FavoritesContext.jsx';
-import Sing from './pages/Sing.jsx';
 import { parseRouteBase } from './utils/routes.js';
 import './App.css';
 
+const Sing = lazy(() => import('./pages/Sing.jsx'));
 const Import = lazy(() => import('./pages/Import.jsx'));
 
 function useRoute() {
@@ -20,7 +20,7 @@ function useRoute() {
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
 
-  return route === 'library' ? 'library' : 'sing';
+  return route === 'admin' ? 'admin' : 'sing';
 }
 
 function AppNav() {
@@ -29,31 +29,45 @@ function AppNav() {
 
   return (
     <nav className="app-nav" aria-label="Main navigation">
-      <div className="app-nav-start">
-        <a
-          href="#sing"
-          className={`app-nav-link ${route === 'sing' ? 'app-nav-link--active' : ''}`}
-        >
-          Sing
-        </a>
-        <a
-          href="#library"
-          className={`app-nav-link ${route === 'library' ? 'app-nav-link--active' : ''}`}
-        >
-          Library
-        </a>
-      </div>
-      <h1 className="app-nav-title">Sing-Along</h1>
-      <div className="app-nav-end">
-        {isAdmin ? (
-          <button type="button" className="app-nav-btn" onClick={() => logout()}>
-            Log out
-          </button>
-        ) : (
-          <button type="button" className="app-nav-btn app-nav-btn--primary" onClick={() => setShowUnlock(true)}>
-            Unlock admin
-          </button>
-        )}
+      <h1 className="app-nav-brand">
+        <img
+          className="app-nav-logo"
+          src={`${import.meta.env.BASE_URL}sing-along-logo.png`}
+          alt="Sing-Along"
+          width={320}
+          height={54}
+        />
+      </h1>
+      <div className="app-nav-bar">
+        <div className="app-nav-tabs" role="tablist" aria-label="Pages">
+          <a
+            href="#sing"
+            role="tab"
+            aria-selected={route === 'sing'}
+            className={`app-nav-tab ${route === 'sing' ? 'app-nav-tab--active' : ''}`}
+          >
+            Sing
+          </a>
+          <a
+            href="#admin"
+            role="tab"
+            aria-selected={route === 'admin'}
+            className={`app-nav-tab ${route === 'admin' ? 'app-nav-tab--active' : ''}`}
+          >
+            Admin
+          </a>
+        </div>
+        <div className="app-nav-end">
+          {isAdmin ? (
+            <button type="button" className="app-nav-tab-action" onClick={() => logout()}>
+              Log out
+            </button>
+          ) : (
+            <button type="button" className="app-nav-tab-action" onClick={() => setShowUnlock(true)}>
+              Unlock admin
+            </button>
+          )}
+        </div>
       </div>
     </nav>
   );
@@ -61,7 +75,7 @@ function AppNav() {
 
 function AppRoutes() {
   const route = useRoute();
-  return route === 'library' ? <Import /> : <Sing />;
+  return route === 'admin' ? <Import /> : <Sing />;
 }
 
 export default function App() {
