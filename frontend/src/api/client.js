@@ -3,10 +3,18 @@ const API_BASE = RAW_API_BASE.replace(/\/$/, '');
 
 export { API_BASE };
 
+const TOKEN_KEY = 'singalong-admin-token';
+export const getAdminToken = () => localStorage.getItem(TOKEN_KEY);
+export const setAdminToken = (v) => localStorage.setItem(TOKEN_KEY, v);
+export const clearAdminToken = () => localStorage.removeItem(TOKEN_KEY);
+
 async function request(path, options = {}) {
+  const token = getAdminToken();
+  const authHeaders = token ? { 'X-Admin-Token': token } : {};
   const response = await fetch(`${API_BASE}${path}`, {
     credentials: 'include',
     ...options,
+    headers: { ...authHeaders, ...options.headers },
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -27,15 +35,18 @@ export function getAuthMe() {
   return request('/auth/me');
 }
 
-export function loginAdmin(password) {
-  return request('/auth/login', {
+export async function loginAdmin(password) {
+  const data = await request('/auth/login', {
     method: 'POST',
     headers: jsonHeaders(),
     body: JSON.stringify({ password }),
   });
+  if (data.token) setAdminToken(data.token);
+  return data;
 }
 
 export function logoutAdmin() {
+  clearAdminToken();
   return request('/auth/logout', { method: 'POST' });
 }
 
@@ -114,7 +125,11 @@ export function subscribeRoomState(onMessage, onError) {
   function connect() {
     if (closed) return;
 
-    source = new EventSource(`${API_BASE}/room/stream`, { withCredentials: true });
+    const token = getAdminToken();
+    const streamUrl = token
+      ? `${API_BASE}/room/stream?token=${encodeURIComponent(token)}`
+      : `${API_BASE}/room/stream`;
+    source = new EventSource(streamUrl, { withCredentials: true });
 
     source.onmessage = (event) => {
       try {

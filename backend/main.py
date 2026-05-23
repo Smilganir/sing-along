@@ -7,6 +7,7 @@ import json
 
 from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, Header, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import desc, nulls_last
@@ -43,6 +44,7 @@ from services.takeout_sync import detect_language, thumbnail_for, video_id
 app = FastAPI(title="Sing-Along API", version="0.5.0")
 api = APIRouter()
 
+app.add_middleware(GZipMiddleware, minimum_size=500)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
@@ -306,16 +308,17 @@ def health():
 def auth_login(payload: LoginIn, response: Response):
     if not verify_admin_password(payload.password):
         raise HTTPException(status_code=401, detail="Invalid password")
+    token = create_session_token()
     response.set_cookie(
         key=SESSION_COOKIE_NAME,
-        value=create_session_token(),
+        value=token,
         httponly=True,
         samesite=SESSION_COOKIE_SAMESITE,
         secure=SESSION_COOKIE_SECURE,
         max_age=SESSION_MAX_AGE,
         path="/",
     )
-    return {"ok": True}
+    return {"ok": True, "token": token}
 
 
 @api.post("/auth/logout")
@@ -473,6 +476,7 @@ def create_song(
 
 @api.get("/songs", response_model=SongListOut)
 def list_songs(
+    response: Response,
     db: Session = Depends(get_db),
     lang: Literal["he", "en"] | None = Query(default=None),
     q: str | None = Query(default=None),
@@ -511,6 +515,7 @@ def list_songs(
 
     total = query.count()
     songs = query.offset(offset).limit(limit).all()
+    response.headers["Cache-Control"] = "public, max-age=30, stale-while-revalidate=300"
     return SongListOut(
         items=[_song_out(song) for song in songs],
         total=total,
@@ -520,10 +525,11 @@ def list_songs(
 
 
 @api.get("/songs/{song_id}", response_model=SongDetailOut)
-def get_song(song_id: int, db: Session = Depends(get_db)):
+def get_song(song_id: int, response: Response, db: Session = Depends(get_db)):
     song = _get_active_song(db, song_id)
     if not song:
         raise HTTPException(status_code=404, detail="Song not found")
+    response.headers["Cache-Control"] = "public, max-age=30, stale-while-revalidate=300"
     return _song_detail(song)
 
 
@@ -599,7 +605,8 @@ async def _room_state_event_stream():
 
 
 @api.get("/room/stream")
-async def stream_room_state():
+async def stream_room_state(token: str | None = Query(default=None)):
+    # token query param accepted for future-proofing (EventSource cannot send custom headers)
     return StreamingResponse(
         _room_state_event_stream(),
         media_type="text/event-stream",

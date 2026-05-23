@@ -56,6 +56,8 @@ def is_admin_request(
 ) -> bool:
     if x_admin_token and secrets.compare_digest(x_admin_token, ADMIN_TOKEN):
         return True
+    if x_admin_token and verify_session_token(x_admin_token):
+        return True
     return verify_session_token(request.cookies.get(SESSION_COOKIE_NAME))
 
 

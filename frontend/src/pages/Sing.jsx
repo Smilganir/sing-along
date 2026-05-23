@@ -196,6 +196,7 @@ export default function Sing() {
 
   useEffect(() => {
     let cancelled = false;
+    let unsubscribe = null;
 
     function handleRoomState(state) {
       if (cancelled) return;
@@ -228,18 +229,22 @@ export default function Sing() {
       }
     }
 
-    const unsubscribe = subscribeRoomState(
-      handleRoomState,
-      () => {
-        if (!cancelled) {
-          console.warn('Room stream disconnected; reconnecting…');
-        }
-      },
-    );
+    const t = setTimeout(() => {
+      if (cancelled) return;
+      unsubscribe = subscribeRoomState(
+        handleRoomState,
+        () => {
+          if (!cancelled) {
+            console.warn('Room stream disconnected; reconnecting…');
+          }
+        },
+      );
+    }, 500);
 
     return () => {
       cancelled = true;
-      unsubscribe();
+      clearTimeout(t);
+      unsubscribe?.();
     };
   }, []);
 

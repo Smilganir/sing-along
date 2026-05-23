@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 
 import AdminUnlockModal from './components/AdminUnlockModal.jsx';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
-import Import from './pages/Import.jsx';
 import Sing from './pages/Sing.jsx';
 import { parseRouteBase } from './utils/routes.js';
 import './App.css';
+
+const Import = lazy(() => import('./pages/Import.jsx'));
 
 function useRoute() {
   const [route, setRoute] = useState(() => parseRouteBase(window.location.hash));
@@ -66,7 +67,9 @@ export default function App() {
   return (
     <AuthProvider>
       <AppNav />
-      <AppRoutes />
+      <Suspense fallback={<div style={{ padding: '2rem', textAlign: 'center' }}>Loading…</div>}>
+        <AppRoutes />
+      </Suspense>
       <AdminUnlockModal />
     </AuthProvider>
   );
