@@ -2,6 +2,7 @@ import { Suspense, lazy, useEffect, useState } from 'react';
 
 import AdminUnlockModal from './components/AdminUnlockModal.jsx';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
+import { FavoritesProvider } from './context/FavoritesContext.jsx';
 import Sing from './pages/Sing.jsx';
 import { parseRouteBase } from './utils/routes.js';
 import './App.css';
@@ -66,11 +67,13 @@ function AppRoutes() {
 export default function App() {
   return (
     <AuthProvider>
-      <AppNav />
-      <Suspense fallback={<div style={{ padding: '2rem', textAlign: 'center' }}>Loading…</div>}>
-        <AppRoutes />
-      </Suspense>
-      <AdminUnlockModal />
+      <FavoritesProvider>
+        <AppNav />
+        <Suspense fallback={<div style={{ padding: '2rem', textAlign: 'center' }}>Loading…</div>}>
+          <AppRoutes />
+        </Suspense>
+        <AdminUnlockModal />
+      </FavoritesProvider>
     </AuthProvider>
   );
 }

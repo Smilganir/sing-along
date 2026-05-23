@@ -11,7 +11,8 @@ import {
   saveSongSheet,
 } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
-import { useLocalStorage } from '../hooks/useLocalStorage.js';import { parseLibrarySongId } from '../utils/routes.js';
+import { useFavorites } from '../context/FavoritesContext.jsx';
+import { parseLibrarySongId } from '../utils/routes.js';
 import './Import.css';
 
 const PAGE_SIZE = 50;
@@ -44,7 +45,7 @@ export default function Import() {
   const [totalSongs, setTotalSongs] = useState(0);
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState('play_count');
-  const [favorites, setFavorites] = useLocalStorage('singalong-favorites', []);
+  const { favorites, isFavorite, toggleFavorite } = useFavorites();
   const [activeTab, setActiveTab] = useState('all');
   const [statusFilter, setStatusFilter] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -138,13 +139,6 @@ export default function Import() {
 
   const rangeStart = totalSongs === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const rangeEnd = Math.min(page * PAGE_SIZE, totalSongs);
-
-  function toggleFavorite(songId, event) {
-    event?.stopPropagation();
-    setFavorites((prev) =>
-      prev.includes(songId) ? prev.filter((id) => id !== songId) : [...prev, songId]
-    );
-  }
 
   async function handleAddSong(event) {
     event.preventDefault();
@@ -490,7 +484,7 @@ export default function Import() {
           ) : (
             <div className="import-list">
               {songs.map((song, index) => {
-                const isFavorite = favorites.includes(song.id);
+                const favorited = isFavorite(song.id);
                 return (
                 <div
                   key={song.id}
@@ -526,11 +520,11 @@ export default function Import() {
                   </button>
                   <button
                     type="button"
-                    className={`import-row-fav ${isFavorite ? 'import-row-fav--on' : ''}`}
-                    aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                    className={`import-row-fav ${favorited ? 'import-row-fav--on' : ''}`}
+                    aria-label={favorited ? 'Remove from favorites' : 'Add to favorites'}
                     onClick={(e) => toggleFavorite(song.id, e)}
                   >
-                    {isFavorite ? '❤️' : '🤍'}
+                    {favorited ? '❤️' : '🤍'}
                   </button>
                   {isAdmin && (
                     <button
@@ -585,11 +579,11 @@ export default function Import() {
                   </div>
                   <button
                     type="button"
-                    className={`import-sheet-fav ${favorites.includes(selectedSong.id) ? 'import-sheet-fav--on' : ''}`}
-                    aria-label={favorites.includes(selectedSong.id) ? 'Remove from favorites' : 'Add to favorites'}
+                    className={`import-sheet-fav ${isFavorite(selectedSong.id) ? 'import-sheet-fav--on' : ''}`}
+                    aria-label={isFavorite(selectedSong.id) ? 'Remove from favorites' : 'Add to favorites'}
                     onClick={() => toggleFavorite(selectedSong.id)}
                   >
-                    {favorites.includes(selectedSong.id) ? '❤️' : '🤍'}
+                    {isFavorite(selectedSong.id) ? '❤️' : '🤍'}
                   </button>
                 </div>
                 {selectedSong.source_url && (

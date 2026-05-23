@@ -173,3 +173,60 @@ export function scrollRoom(scrollAnchor) {
     body: JSON.stringify({ scroll_anchor: scrollAnchor }),
   });
 }
+
+export function getFavorites() {
+  return request('/favorites');
+}
+
+export function addFavorite(songId) {
+  return request(`/favorites/${songId}`, { method: 'POST' });
+}
+
+export function removeFavorite(songId) {
+  return request(`/favorites/${songId}`, { method: 'DELETE' });
+}
+
+export function syncFavorites(ids) {
+  return request('/favorites/sync', {
+    method: 'POST',
+    headers: jsonHeaders(),
+    body: JSON.stringify({ ids }),
+  });
+}
+
+export function subscribeFavorites(onMessage, onError) {
+  let source = null;
+  let reconnectTimer = null;
+  let closed = false;
+
+  function connect() {
+    if (closed) return;
+
+    source = new EventSource(`${API_BASE}/favorites/stream`, { withCredentials: true });
+
+    source.onmessage = (event) => {
+      try {
+        onMessage(JSON.parse(event.data));
+      } catch (err) {
+        onError?.(err);
+      }
+    };
+
+    source.onerror = () => {
+      if (closed) return;
+      source?.close();
+      source = null;
+      onError?.(new Error('Favorites SSE connection lost'));
+      reconnectTimer = setTimeout(connect, 3000);
+    };
+  }
+
+  connect();
+
+  return function unsubscribe() {
+    closed = true;
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    source?.close();
+    source = null;
+  };
+}

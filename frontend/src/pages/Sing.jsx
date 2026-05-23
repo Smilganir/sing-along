@@ -6,6 +6,7 @@ import { EnrichmentStatusBadge, EnrichmentStatusIcon } from '../components/Enric
 import { getSong, getSongs, scrollRoom, subscribeRoomState, syncRoom } from '../api/client.js';
 
 import { useAuth } from '../context/AuthContext.jsx';
+import { useFavorites } from '../context/FavoritesContext.jsx';
 import { useLocalStorage } from '../hooks/useLocalStorage.js';
 import { youtubeEmbedUrl } from '../utils/chordpro.js';
 import { librarySongHref } from '../utils/routes.js';
@@ -111,7 +112,7 @@ export default function Sing() {
 
   const [lyricsOnly, setLyricsOnly] = useLocalStorage('singalong-lyrics-only-v2', true);
   const [showYoutube, setShowYoutube] = useLocalStorage('singalong-show-youtube', false);
-  const [favorites] = useLocalStorage('singalong-favorites', []);
+  const { favorites } = useFavorites();
   const [sidebarOpen, setSidebarOpen] = useLocalStorage('singalong-sidebar-open-v2', false);
   const [statusFilter, setStatusFilter] = useLocalStorage('singalong-status-filter', 'all');
 

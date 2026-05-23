@@ -2,7 +2,7 @@ from datetime import datetime
 
 
 
-from sqlalchemy import DateTime, Integer, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
 
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -106,4 +106,13 @@ class RoomState(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
     )
+
+
+class Favorite(Base):
+    __tablename__ = "favorites"
+
+    song_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("songs.id", ondelete="CASCADE"), primary_key=True
+    )
+    added_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 

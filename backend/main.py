@@ -29,8 +29,13 @@ from config import (
     sqlite_db_path,
 )
 from db.database import SessionLocal, get_db, init_db
-from db.models import RoomState, Song, SyncRun
+from db.models import Favorite, RoomState, Song, SyncRun
 from services.enrichment import enrich_song, enrich_song_from_url, enrich_top_songs
+from services.favorites_broadcast import (
+    current_favorites_seq,
+    notify_favorites_change,
+    wait_favorites_change,
+)
 from services.http_cache import bust_cache_for_song, clear_http_cache
 from services.room_broadcast import (
     clear_live_scroll,
@@ -155,6 +160,14 @@ class AuthMeOut(BaseModel):
     admin: bool
 
 
+class FavoritesOut(BaseModel):
+    ids: list[int]
+
+
+class FavoritesSyncIn(BaseModel):
+    ids: list[int] = Field(default_factory=list)
+
+
 AdminDep = Annotated[None, Depends(require_admin)]
 
 
@@ -164,6 +177,17 @@ def _active_songs(db: Session):
 
 def _get_active_song(db: Session, song_id: int) -> Song | None:
     return _active_songs(db).filter(Song.id == song_id).one_or_none()
+
+
+def _favorite_ids(db: Session) -> list[int]:
+    rows = (
+        db.query(Favorite.song_id)
+        .join(Song, Song.id == Favorite.song_id)
+        .filter(Song.deleted_at.is_(None))
+        .order_by(Favorite.added_at.asc(), Favorite.song_id.asc())
+        .all()
+    )
+    return [row[0] for row in rows]
 
 
 def _youtube_url(song: Song) -> str | None:
@@ -348,6 +372,82 @@ def library_status(db: Session = Depends(get_db)):
 @api.get("/import/status", response_model=LibraryStatusOut)
 def import_status_compat(db: Session = Depends(get_db)):
     return _library_status(db)
+
+
+@api.get("/favorites", response_model=FavoritesOut)
+def list_favorites(db: Session = Depends(get_db)):
+    return FavoritesOut(ids=_favorite_ids(db))
+
+
+@api.post("/favorites/{song_id}", response_model=FavoritesOut)
+def add_favorite(song_id: int, db: Session = Depends(get_db)):
+    if not _get_active_song(db, song_id):
+        raise HTTPException(status_code=404, detail="Song not found")
+    if db.get(Favorite, song_id) is None:
+        db.add(Favorite(song_id=song_id))
+        db.commit()
+    notify_favorites_change()
+    return FavoritesOut(ids=_favorite_ids(db))
+
+
+@api.delete("/favorites/{song_id}", response_model=FavoritesOut)
+def remove_favorite(song_id: int, db: Session = Depends(get_db)):
+    favorite = db.get(Favorite, song_id)
+    if favorite is not None:
+        db.delete(favorite)
+        db.commit()
+    notify_favorites_change()
+    return FavoritesOut(ids=_favorite_ids(db))
+
+
+@api.post("/favorites/sync", response_model=FavoritesOut)
+def sync_favorites(payload: FavoritesSyncIn, db: Session = Depends(get_db)):
+    existing = set(_favorite_ids(db))
+    added = False
+    for song_id in payload.ids:
+        if song_id in existing:
+            continue
+        if _get_active_song(db, song_id) is None:
+            continue
+        db.add(Favorite(song_id=song_id))
+        existing.add(song_id)
+        added = True
+    if added:
+        db.commit()
+    notify_favorites_change()
+    return FavoritesOut(ids=_favorite_ids(db))
+
+
+async def _favorites_event_stream():
+    last_seq = -1
+    try:
+        while True:
+            db = SessionLocal()
+            try:
+                seq = current_favorites_seq()
+                if seq != last_seq:
+                    payload = FavoritesOut(ids=_favorite_ids(db))
+                    yield f"data: {payload.model_dump_json()}\n\n"
+                    last_seq = seq
+                else:
+                    yield ": keepalive\n\n"
+            finally:
+                db.close()
+            await wait_favorites_change(timeout=15.0)
+    except asyncio.CancelledError:
+        raise
+
+
+@api.get("/favorites/stream")
+async def stream_favorites():
+    return StreamingResponse(
+        _favorites_event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @api.post("/enrich/top", response_model=EnrichSummaryOut)
