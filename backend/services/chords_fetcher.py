@@ -13,7 +13,23 @@ USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 )
-HEADERS = {"User-Agent": USER_AGENT}
+HEADERS = {
+    "User-Agent": USER_AGENT,
+    "Accept": (
+        "text/html,application/xhtml+xml,application/xml;q=0.9,"
+        "image/avif,image/webp,*/*;q=0.8"
+    ),
+    "Accept-Language": "en-US,en;q=0.9,he;q=0.8",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Upgrade-Insecure-Requests": "1",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1",
+    "sec-ch-ua": '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": '"Windows"',
+}
 HTTP = get_http_session()
 
 
@@ -264,24 +280,48 @@ def _resolve_chord_source(host: str) -> str | None:
     return None
 
 
+def _fetch_with_curl_cffi(url: str) -> tuple[str, str, int] | None:
+    """Try curl_cffi with browser TLS impersonation. Returns (text, url, status) or None."""
+    try:
+        from curl_cffi import requests as curl_requests
+    except ImportError:
+        return None
+    try:
+        response = curl_requests.get(url, impersonate="chrome", timeout=30)
+    except Exception:
+        return None
+    final_url = str(response.url).split("#", 1)[0]
+    return response.text, final_url, response.status_code
+
+
 def _fetch_page_html(source_url: str) -> tuple[str, str]:
-    parsed = urlparse(source_url.strip())
+    """Fetch a chord/lyrics page, defeating bot-detection 403s common on datacenter IPs.
+
+    Strategy: always try curl_cffi first (mimics real Chrome TLS/JA3 fingerprint),
+    fall back to the cached requests session if curl_cffi is unavailable or errors.
+    Ultimate Guitar requires curl_cffi, so for that host we never fall back.
+    """
+    url = source_url.strip()
+    parsed = urlparse(url)
     host = parsed.netloc.lower()
 
-    if _is_ultimate_guitar_host(host):
-        try:
-            from curl_cffi import requests as curl_requests
-        except ImportError as exc:
-            raise ValueError(
-                "Ultimate Guitar support requires curl_cffi (pip install curl_cffi)"
-            ) from exc
-        response = curl_requests.get(source_url.strip(), impersonate="chrome", timeout=30)
-    else:
-        response = HTTP.get(source_url.strip(), headers=HEADERS, timeout=30)
+    curl_result = _fetch_with_curl_cffi(url)
 
+    if curl_result is None and _is_ultimate_guitar_host(host):
+        raise ValueError(
+            "Ultimate Guitar support requires curl_cffi (pip install curl_cffi)"
+        )
+
+    if curl_result is not None:
+        text, final_url, status = curl_result
+        if 200 <= status < 400:
+            return text, final_url
+        if _is_ultimate_guitar_host(host):
+            raise ValueError(f"Could not fetch page (HTTP {status})")
+
+    response = HTTP.get(url, headers=HEADERS, timeout=30)
     if not response.ok:
         raise ValueError(f"Could not fetch page (HTTP {response.status_code})")
-
     final_url = response.url.split("#", 1)[0]
     return response.text, final_url
 
