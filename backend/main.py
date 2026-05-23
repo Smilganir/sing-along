@@ -480,7 +480,7 @@ def list_songs(
     db: Session = Depends(get_db),
     lang: Literal["he", "en"] | None = Query(default=None),
     q: str | None = Query(default=None),
-    sort: Literal["play_count", "last_played_at"] = Query(default="play_count"),
+    sort: Literal["play_count", "last_played_at", "title"] = Query(default="play_count"),
     status: str | None = Query(default=None),
     ids: str | None = Query(default=None, description="Comma-separated song IDs"),
     limit: int = Query(default=50, ge=1, le=1000),
@@ -510,6 +510,8 @@ def list_songs(
 
     if sort == "last_played_at":
         query = query.order_by(nulls_last(desc(Song.last_played_at)), Song.title.asc())
+    elif sort == "title":
+        query = query.order_by(Song.title.asc(), Song.artist.asc())
     else:
         query = query.order_by(Song.play_count.desc(), Song.title.asc())
 

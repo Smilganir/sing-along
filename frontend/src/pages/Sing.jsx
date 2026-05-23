@@ -56,6 +56,7 @@ function scrollSheetToAnchor(container, anchor) {
 const SORT_OPTIONS = [
   { id: 'play_count', label: 'Most played' },
   { id: 'last_played_at', label: 'Recently played' },
+  { id: 'title', label: 'Name' },
   { id: 'favorites', label: 'Favorites' },
 ];
 
