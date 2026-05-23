@@ -162,6 +162,7 @@ class AuthMeOut(BaseModel):
 
 class FavoritesOut(BaseModel):
     ids: list[int]
+    seq: int = 0
 
 
 class FavoritesSyncIn(BaseModel):
@@ -188,6 +189,10 @@ def _favorite_ids(db: Session) -> list[int]:
         .all()
     )
     return [row[0] for row in rows]
+
+
+def _favorites_out(db: Session) -> FavoritesOut:
+    return FavoritesOut(ids=_favorite_ids(db), seq=current_favorites_seq())
 
 
 def _youtube_url(song: Song) -> str | None:
@@ -376,7 +381,7 @@ def import_status_compat(db: Session = Depends(get_db)):
 
 @api.get("/favorites", response_model=FavoritesOut)
 def list_favorites(db: Session = Depends(get_db)):
-    return FavoritesOut(ids=_favorite_ids(db))
+    return _favorites_out(db)
 
 
 @api.post("/favorites/{song_id}", response_model=FavoritesOut)
@@ -387,7 +392,7 @@ def add_favorite(song_id: int, db: Session = Depends(get_db)):
         db.add(Favorite(song_id=song_id))
         db.commit()
     notify_favorites_change()
-    return FavoritesOut(ids=_favorite_ids(db))
+    return _favorites_out(db)
 
 
 @api.delete("/favorites/{song_id}", response_model=FavoritesOut)
@@ -397,7 +402,7 @@ def remove_favorite(song_id: int, db: Session = Depends(get_db)):
         db.delete(favorite)
         db.commit()
     notify_favorites_change()
-    return FavoritesOut(ids=_favorite_ids(db))
+    return _favorites_out(db)
 
 
 @api.post("/favorites/sync", response_model=FavoritesOut)
@@ -415,7 +420,7 @@ def sync_favorites(payload: FavoritesSyncIn, db: Session = Depends(get_db)):
     if added:
         db.commit()
     notify_favorites_change()
-    return FavoritesOut(ids=_favorite_ids(db))
+    return _favorites_out(db)
 
 
 async def _favorites_event_stream():
@@ -426,7 +431,7 @@ async def _favorites_event_stream():
             try:
                 seq = current_favorites_seq()
                 if seq != last_seq:
-                    payload = FavoritesOut(ids=_favorite_ids(db))
+                    payload = _favorites_out(db)
                     yield f"data: {payload.model_dump_json()}\n\n"
                     last_seq = seq
                 else:

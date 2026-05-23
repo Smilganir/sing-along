@@ -45,14 +45,16 @@ export function FavoritesProvider({ children }) {
   const [ready, setReady] = useState(false);
   const favoritesRef = useRef(favorites);
   const pendingToggleRef = useRef(false);
+  const lastSeqRef = useRef(-1);
 
   favoritesRef.current = favorites;
 
-  const setFavorites = useCallback((next) => {
-    setFavoritesState((prev) => {
-      const raw = typeof next === 'function' ? next(prev) : next;
-      return normalizeIds(raw);
-    });
+  const applyServerFavorites = useCallback((data, { force = false } = {}) => {
+    if (!data || !Array.isArray(data.ids)) return;
+    const seq = Number(data.seq ?? 0);
+    if (!force && seq < lastSeqRef.current) return;
+    lastSeqRef.current = Math.max(lastSeqRef.current, seq);
+    setFavoritesState(normalizeIds(data.ids));
   }, []);
 
   useEffect(() => {
@@ -74,11 +76,22 @@ export function FavoritesProvider({ children }) {
           localStorage.removeItem(LEGACY_KEY);
         }
 
+        data = await getFavorites();
         if (!cancelled) {
-          setFavorites(data.ids ?? []);
+          applyServerFavorites(data, { force: true });
         }
-      } catch {
-        if (!cancelled) setFavorites(readLegacyFavorites());
+      } catch (err) {
+        if (!cancelled) {
+          const msg = err instanceof Error ? err.message : String(err);
+          if (msg.includes('Not Found')) {
+            console.error(
+              '[Sing-Along] Favorites API missing — restart the backend with latest code:\n'
+              + '  cd backend\n'
+              + '  .venv\\Scripts\\uvicorn main:app --reload --port 8000',
+            );
+          }
+          setFavoritesState(readLegacyFavorites());
+        }
       } finally {
         if (!cancelled) setReady(true);
       }
@@ -88,7 +101,7 @@ export function FavoritesProvider({ children }) {
     return () => {
       cancelled = true;
     };
-  }, [setFavorites]);
+  }, [applyServerFavorites]);
 
   useEffect(() => {
     if (!ready) return undefined;
@@ -96,18 +109,18 @@ export function FavoritesProvider({ children }) {
     return subscribeFavorites(
       (data) => {
         if (pendingToggleRef.current) return;
-        if (Array.isArray(data.ids)) {
-          setFavorites(data.ids);
-        }
+        applyServerFavorites(data);
       },
       () => {
         /* reconnect handled in client */
       },
     );
-  }, [ready, setFavorites]);
+  }, [ready, applyServerFavorites]);
 
   const toggleFavorite = useCallback(async (songId, event) => {
     event?.stopPropagation();
+    if (!ready) return;
+
     const sid = Number(songId);
     if (!Number.isInteger(sid) || sid <= 0) return;
 
@@ -118,26 +131,30 @@ export function FavoritesProvider({ children }) {
       : [...previous, sid];
 
     pendingToggleRef.current = true;
-    setFavorites(optimistic);
+    setFavoritesState(optimistic);
 
     try {
       const data = wasFavorite
         ? await removeFavorite(sid)
         : await addFavorite(sid);
-      setFavorites(data.ids ?? optimistic);
+      applyServerFavorites(data, { force: true });
     } catch {
       try {
         const data = await getFavorites();
         const serverIds = normalizeIds(data.ids ?? []);
         const changed = serverIds.includes(sid) !== wasFavorite;
-        setFavorites(changed ? serverIds : previous);
+        if (changed) {
+          applyServerFavorites(data, { force: true });
+        } else {
+          setFavoritesState(previous);
+        }
       } catch {
-        setFavorites(previous);
+        setFavoritesState(previous);
       }
     } finally {
       pendingToggleRef.current = false;
     }
-  }, [setFavorites]);
+  }, [ready, applyServerFavorites]);
 
   const isFavorite = useCallback(
     (songId) => favorites.some((id) => id === Number(songId)),
