@@ -10,7 +10,7 @@
 
 .app-nav-brand {
   margin: 0;
-  padding: 0.4rem 0 0.25rem;
+  padding: 0.15rem 0 0.1rem;
   text-align: center;
   line-height: 0;
 }
@@ -18,8 +18,8 @@
 .app-nav-logo {
   display: inline-block;
   width: auto;
-  height: 3rem;
-  max-width: min(100%, 24rem);
+  height: 5.5rem;
+  max-width: min(100%, 42rem);
   object-fit: contain;
 }
 
@@ -52,14 +52,14 @@
   }
 
   .app-nav-logo {
-    height: 2.5rem;
-    max-width: min(100%, 20rem);
+    height: 4.25rem;
+    max-width: 100%;
   }
 
   .app-nav-tab,
   .app-nav-tab-action {
-    padding-left: 0.75rem;
-    padding-right: 0.75rem;
+    padding-left: 0.65rem;
+    padding-right: 0.65rem;
     font-size: 0.84rem;
   }
 }
@@ -67,7 +67,7 @@
 .app-nav-tab {
   display: inline-flex;
   align-items: center;
-  padding: 0.75rem 1.15rem 0.65rem;
+  padding: 0.5rem 1rem 0.4rem;
   font-weight: 600;
   font-size: 0.92rem;
   text-decoration: none;
@@ -96,7 +96,7 @@
 }
 
 .app-nav-tab-action {
-  padding: 0.75rem 0.95rem 0.65rem;
+  padding: 0.5rem 0.85rem 0.4rem;
   font-weight: 600;
   font-size: 0.88rem;
   cursor: pointer;

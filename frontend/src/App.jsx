@@ -33,9 +33,15 @@ function AppNav() {
         <img
           className="app-nav-logo"
           src={`${import.meta.env.BASE_URL}sing-along-logo.png`}
+          srcSet={[
+            `${import.meta.env.BASE_URL}sing-along-logo.png 1x`,
+            `${import.meta.env.BASE_URL}sing-along-logo@2x.png 2x`,
+            `${import.meta.env.BASE_URL}sing-along-logo@3x.png 3x`,
+          ].join(', ')}
           alt="Sing-Along"
-          width={320}
-          height={54}
+          width={840}
+          height={106}
+          decoding="async"
         />
       </h1>
       <div className="app-nav-bar">
