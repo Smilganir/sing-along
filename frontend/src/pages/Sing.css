@@ -7,6 +7,13 @@
   --sing-accent: #60a5fa;
   --sing-chord: #93c5fd;
   --sing-lyrics-size: 1.2rem;
+  --chord-diagram-text: var(--sing-text);
+  --chord-diagram-fret: var(--sing-border);
+  --chord-diagram-string: var(--sing-muted);
+  --chord-diagram-dot: var(--sing-accent);
+  --chord-diagram-muted: var(--sing-muted);
+  --chord-diagram-open: var(--sing-chord);
+  --chord-diagram-accent: var(--sing-chord);
   max-width: 1200px;
   margin: 0 auto;
   padding: 1.25rem 1.5rem 2rem;
@@ -786,6 +793,65 @@
   min-height: 1.35em;
   display: block;
   width: 100%;
+}
+
+.sing-chord-token {
+  cursor: help;
+  border-radius: 0.15rem;
+  outline: none;
+}
+
+.sing-chord-token:hover,
+.sing-chord-token:focus-visible {
+  color: #bfdbfe;
+  text-decoration: underline;
+  text-decoration-color: rgba(147, 197, 253, 0.55);
+  text-underline-offset: 0.12em;
+}
+
+.sing-chord-diagram-popover {
+  position: fixed;
+  z-index: 1200;
+  padding: 0.5rem 0.6rem 0.45rem;
+  border-radius: 0.65rem;
+  border: 1px solid var(--sing-border);
+  background: rgba(15, 23, 42, 0.98);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+  text-align: center;
+  overflow: visible;
+}
+
+.sing-chord-diagram-img,
+.sing-chord-diagram-svg {
+  display: block;
+  width: 180px;
+  max-width: min(72vw, 230px);
+  margin-inline: auto;
+  overflow: visible;
+}
+
+.sing-chord-diagram-img {
+  height: auto;
+}
+
+.sing-chord-diagram-svg svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.sing-chord-diagram-svg .agc-axis-label {
+  fill: #e2e8f0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.sing-chord-diagram-missing {
+  margin: 0.35rem 0.5rem;
+  font-size: 0.82rem;
+  color: var(--sing-muted);
 }
 
 .sing-sheet--he .sing-sheet-chords {

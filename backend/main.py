@@ -3,12 +3,16 @@ from typing import Annotated, Any, Literal
 from uuid import uuid4
 
 import asyncio
+
+import requests
+
+from services.agc_chords import adapt_agc_svg_for_dark_bg, agc_svg_url
 import json
 
-from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, Header, HTTPException, Query, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import desc, nulls_last
 from sqlalchemy.orm import Session, load_only
@@ -782,6 +786,33 @@ def scroll_room(payload: RoomScrollIn, db: Session = Depends(get_db), _: AdminDe
 
 def _song_export_record(song: Song) -> dict[str, Any]:
     return _song_detail(song).model_dump(mode="json")
+
+
+@api.get("/chords/diagram")
+def chord_diagram(chord: str = Query(min_length=1, max_length=32)):
+    url = agc_svg_url(chord)
+    if not url:
+        raise HTTPException(status_code=404, detail="Chord diagram not available")
+
+    try:
+        upstream = requests.get(
+            url,
+            headers={"User-Agent": "Sing-Along/1.0 (+https://github.com/Smilganir/sing-along)"},
+            timeout=12,
+        )
+    except requests.RequestException as exc:
+        raise HTTPException(status_code=502, detail="Chord diagram fetch failed") from exc
+
+    if upstream.status_code != 200:
+        raise HTTPException(status_code=404, detail="Chord diagram not found")
+
+    svg = adapt_agc_svg_for_dark_bg(upstream.text)
+
+    return Response(
+        content=svg.encode("utf-8"),
+        media_type=upstream.headers.get("Content-Type", "image/svg+xml"),
+        headers={"Cache-Control": "public, max-age=3600, must-revalidate"},
+    )
 
 
 @api.get("/admin/export.json")

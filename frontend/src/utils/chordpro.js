@@ -16,6 +16,29 @@ function normalizeChordToken(token) {
   return token.replace(/^[(]+|[,;)]+$/g, '').replace(/\s*x\d+$/i, '');
 }
 
+export function tokenizeChordLine(line) {
+  if (!line) return [];
+
+  const tokens = [];
+  const parts = line.match(/(\s+|[^\s]+)/g) ?? [];
+
+  for (const text of parts) {
+    if (/^\s+$/.test(text)) {
+      tokens.push({ type: 'space', text });
+      continue;
+    }
+
+    const clean = normalizeChordToken(text);
+    if (clean && CHORD_TOKEN.test(clean)) {
+      tokens.push({ type: 'chord', text, chord: clean });
+    } else {
+      tokens.push({ type: 'text', text });
+    }
+  }
+
+  return tokens;
+}
+
 export function isChordOnlyLine(line) {
   const trimmed = line.trim();
   if (!trimmed) return false;

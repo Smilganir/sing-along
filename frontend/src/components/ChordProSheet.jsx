@@ -1,4 +1,30 @@
-import { lyricAnchorHash, parseChordPro } from '../utils/chordpro.js';
+import ChordToken from './ChordToken.jsx';
+import { lyricAnchorHash, parseChordPro, tokenizeChordLine } from '../utils/chordpro.js';
+
+function ChordLine({ line, isHebrew }) {
+  const tokens = tokenizeChordLine(line);
+
+  return (
+    <pre
+      className="sing-sheet-chords"
+      dir={isHebrew ? 'rtl' : 'ltr'}
+    >
+      {tokens.map((token, index) => {
+        if (token.type === 'space') {
+          return <span key={index}>{token.text}</span>;
+        }
+        if (token.type === 'chord') {
+          return (
+            <ChordToken key={index} chord={token.chord}>
+              {token.text}
+            </ChordToken>
+          );
+        }
+        return <span key={index}>{token.text}</span>;
+      })}
+    </pre>
+  );
+}
 
 export default function ChordProSheet({ text, language, lyricsOnly }) {
   const blocks = parseChordPro(text, { lyricsOnly });
@@ -16,14 +42,8 @@ export default function ChordProSheet({ text, language, lyricsOnly }) {
           className="sing-verse-block"
           data-anchor={lyricAnchorHash(block.lyrics)}
         >
-          {block.chords && (
-            <pre
-              className="sing-sheet-chords"
-              dir={isHebrew ? 'rtl' : 'ltr'}
-              aria-hidden={lyricsOnly}
-            >
-              {block.chords}
-            </pre>
+          {block.chords && !lyricsOnly && (
+            <ChordLine line={block.chords} isHebrew={isHebrew} />
           )}
           {block.lyrics && (
             <pre className="sing-sheet-lyrics" dir={isHebrew ? 'rtl' : 'ltr'}>
