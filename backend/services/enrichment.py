@@ -343,3 +343,54 @@ def enrich_retry_songs(
         time.sleep(delay_sec)
 
     return summary
+
+
+@dataclass
+class BackfillEasySummary:
+    scanned: int
+    updated: int
+    skipped: int
+    unchanged: int
+
+
+def backfill_missing_easy_sheets(
+    db: Session,
+    *,
+    dry_run: bool = False,
+    limit: int | None = None,
+) -> BackfillEasySummary:
+    query = (
+        db.query(Song)
+        .filter(
+            Song.deleted_at.is_(None),
+            Song.chordpro_full.isnot(None),
+            Song.chordpro_full != "",
+        )
+        .order_by(Song.play_count.desc(), Song.id.asc())
+    )
+    if limit is not None:
+        query = query.limit(limit)
+
+    summary = BackfillEasySummary(scanned=0, updated=0, skipped=0, unchanged=0)
+    for song in query.all():
+        summary.scanned += 1
+        if song.chordpro_easy and song.chordpro_easy.strip():
+            summary.skipped += 1
+            continue
+
+        versions = apply_easy_versions(song.chordpro_full or "", song.language)
+        if not versions.chordpro_easy:
+            summary.unchanged += 1
+            continue
+
+        summary.updated += 1
+        if dry_run:
+            continue
+
+        song.chordpro_easy = versions.chordpro_easy
+        song.easy_note_he = versions.easy_note_he
+        song.easy_note_en = versions.easy_note_en
+
+    if not dry_run:
+        db.commit()
+    return summary

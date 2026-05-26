@@ -26,6 +26,7 @@ from services.enrichment import (
     enrich_song,
     enrich_top_songs,
     repair_drifted_sheets,
+    backfill_missing_easy_sheets,
 )
 from services.easy_chords import has_inverted_easy_pattern, sheets_drifted_from_source
 from services.chords_fetcher import fetch_chords_from_url
@@ -371,6 +372,19 @@ def cmd_repair(args: argparse.Namespace) -> None:
         db.close()
 
 
+def cmd_backfill_easy(args: argparse.Namespace) -> None:
+    db = SessionLocal()
+    try:
+        stats = backfill_missing_easy_sheets(db, dry_run=args.dry_run, limit=args.limit)
+    finally:
+        db.close()
+    mode = "Dry run" if args.dry_run else "Backfill"
+    print(
+        f"{mode} done: scanned={stats.scanned} updated={stats.updated} "
+        f"skipped={stats.skipped} unchanged={stats.unchanged}"
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Sing-Along enrichment CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -419,6 +433,14 @@ def build_parser() -> argparse.ArgumentParser:
     repair.add_argument("--dry-run", action="store_true", help="List candidates without repairing")
     repair.add_argument("--delay", type=float, default=0.3, help="Delay between fetches (default: 0.3)")
     repair.set_defaults(func=cmd_repair)
+
+    backfill_easy = subparsers.add_parser(
+        "backfill-easy",
+        help="Generate missing chordpro_easy sheets (capo, simplify, or Am/Em fallback)",
+    )
+    backfill_easy.add_argument("--dry-run", action="store_true", help="Report counts without writing")
+    backfill_easy.add_argument("--limit", type=int, default=None, help="Max songs to scan")
+    backfill_easy.set_defaults(func=cmd_backfill_easy)
 
     return parser
 
