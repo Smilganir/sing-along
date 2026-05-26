@@ -1,5 +1,7 @@
 import guitar from '@tombatossals/chords-db/lib/guitar.json';
 
+import { API_BASE } from '../api/client.js';
+
 const FLAT_TO_SHARP = {
   Db: 'C#',
   Eb: 'D#',
@@ -108,7 +110,7 @@ export function getChordsDbShape(chordName) {
 }
 
 export function chordDiagramApiUrl(chordName) {
-  return `/api/chords/diagram?chord=${encodeURIComponent(chordName)}&v=4`;
+  return `${API_BASE}/chords/diagram?chord=${encodeURIComponent(chordName)}&v=5`;
 }
 
 const FRET_LABEL_Y = { 61: 56, 101: 96, 141: 136, 181: 176 };
