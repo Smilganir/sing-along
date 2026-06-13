@@ -30,6 +30,10 @@ ROOM_STATE_MIGRATIONS = [
     "ALTER TABLE room_state ADD COLUMN scroll_anchor VARCHAR(64)",
 ]
 
+SYNC_RUN_MIGRATIONS = [
+    "ALTER TABLE sync_runs ADD COLUMN source VARCHAR(32)",
+]
+
 INDEX_MIGRATIONS = [
     "CREATE INDEX IF NOT EXISTS ix_songs_deleted_at ON songs (deleted_at)",
     "CREATE INDEX IF NOT EXISTS ix_songs_play_count ON songs (play_count DESC)",
@@ -78,6 +82,7 @@ def run_migrations() -> None:
                     continue
                 raise
         _apply_column_migrations(connection, "room_state", ROOM_STATE_MIGRATIONS)
+        _apply_column_migrations(connection, "sync_runs", SYNC_RUN_MIGRATIONS)
         for statement in INDEX_MIGRATIONS:
             try:
                 connection.execute(text(statement))

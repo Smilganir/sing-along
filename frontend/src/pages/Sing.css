@@ -373,7 +373,7 @@
 
 .sing-song-item {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.65rem;
   width: 100%;
   min-width: 0;
@@ -412,7 +412,18 @@
   font-weight: 700;
   color: var(--sing-muted);
   flex-shrink: 0;
-  padding-top: 0.1rem;
+}
+
+.sing-song-thumb {
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.sing-song-thumb--placeholder {
+  background: linear-gradient(135deg, #dbeafe, #e2e8f0);
 }
 
 .sing-song-info {

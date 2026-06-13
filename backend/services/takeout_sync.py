@@ -11,7 +11,26 @@ from sqlalchemy.orm import Session
 from db.models import Song, SyncRun
 
 HEBREW_RE = re.compile(r"[\u0590-\u05FF]")
-WATCH_HISTORY_NAME = "watch-history.json"
+WATCH_HISTORY_JSON = "watch-history.json"
+WATCH_HISTORY_HTML = "watch-history.html"
+WATCH_HISTORY_NAMES = (WATCH_HISTORY_JSON, WATCH_HISTORY_HTML)
+HTML_PLAYED_AT_RE = re.compile(
+    r"^(?P<month>[A-Za-z]{3})\s+(?P<day>\d{1,2}),\s+(?P<year>\d{4}),\s+"
+    r"(?P<hour>\d{1,2}):(?P<minute>\d{2}):(?P<second>\d{2})\s+(?P<ampm>AM|PM)"
+)
+HTML_MUSIC_BLOCK_RE = re.compile(
+    r'<p class="mdl-typography--title">YouTube Music.*?</p></div>'
+    r'<div class="content-cell mdl-cell mdl-cell--6-col mdl-typography--body-1">(.*?)</div>',
+    re.DOTALL,
+)
+HTML_TITLE_LINK_RE = re.compile(
+    r'href="(https://music\.youtube\.com/watch\?v=[^"]+)"[^>]*>(.*?)</a>',
+    re.DOTALL,
+)
+HTML_ARTIST_LINK_RE = re.compile(
+    r'href="https://www\.youtube\.com/(?:channel|@)[^"]+"[^>]*>(.*?)</a>',
+    re.DOTALL,
+)
 
 
 def detect_language(title: str, artist: str = "") -> str:
@@ -48,7 +67,20 @@ def parse_played_at(value: str | None) -> datetime | None:
         parsed = datetime.fromisoformat(normalized)
         return parsed.replace(tzinfo=None)
     except ValueError:
+        pass
+
+    cleaned = re.sub(r"\s+[A-Z]{2,5}$", "", value.strip())
+    cleaned = cleaned.replace("\u202f", " ")
+    match = HTML_PLAYED_AT_RE.match(cleaned)
+    if not match:
         return None
+    parsed = datetime.strptime(
+        f"{match.group('month')} {match.group('day')}, {match.group('year')} "
+        f"{match.group('hour')}:{match.group('minute')}:{match.group('second')} "
+        f"{match.group('ampm')}",
+        "%b %d, %Y %I:%M:%S %p",
+    )
+    return parsed.replace(tzinfo=None)
 
 
 def thumbnail_for(video_id_value: str) -> str:
@@ -57,20 +89,26 @@ def thumbnail_for(video_id_value: str) -> str:
 
 def find_watch_history(root: Path) -> Path:
     if root.is_file():
-        if root.name == WATCH_HISTORY_NAME:
+        if root.name in WATCH_HISTORY_NAMES:
             return root
-        raise FileNotFoundError(f"Expected {WATCH_HISTORY_NAME}, got {root.name}")
+        raise FileNotFoundError(
+            f"Expected one of {', '.join(WATCH_HISTORY_NAMES)}, got {root.name}"
+        )
 
-    matches = [
-        path
-        for path in root.rglob(WATCH_HISTORY_NAME)
-        if "history" in {part.lower() for part in path.parts}
-    ]
-    if not matches:
-        matches = list(root.rglob(WATCH_HISTORY_NAME))
-    if not matches:
-        raise FileNotFoundError(f"Could not find {WATCH_HISTORY_NAME} under {root}")
-    return matches[0]
+    for name in WATCH_HISTORY_NAMES:
+        matches = [
+            path
+            for path in root.rglob(name)
+            if "history" in {part.lower() for part in path.parts}
+        ]
+        if not matches:
+            matches = list(root.rglob(name))
+        if matches:
+            return matches[0]
+
+    raise FileNotFoundError(
+        f"Could not find {' or '.join(WATCH_HISTORY_NAMES)} under {root}"
+    )
 
 
 def extract_takeout_zip(zip_path: Path, dest_dir: Path) -> Path:
@@ -85,14 +123,44 @@ def extract_takeout_zip(zip_path: Path, dest_dir: Path) -> Path:
     return find_watch_history(dest_dir)
 
 
-def parse_takeout_history(path: Path) -> tuple[list[dict], int]:
-    history_path = find_watch_history(path)
-    with history_path.open(encoding="utf-8") as handle:
-        history = json.load(handle)
-
+def _aggregate_music_rows(rows: list[dict]) -> tuple[list[dict], int]:
     aggregated: dict[str, dict] = {}
     counts: dict[str, int] = defaultdict(int)
 
+    for row in rows:
+        vid = row["yt_video_id"]
+        counts[vid] += 1
+
+        if vid not in aggregated:
+            aggregated[vid] = row.copy()
+            aggregated[vid]["play_count"] = 0
+        else:
+            aggregated[vid]["title"] = row["title"]
+            if row["artist"]:
+                aggregated[vid]["artist"] = row["artist"]
+            played_at = row["last_played_at"]
+            if played_at and (
+                aggregated[vid]["last_played_at"] is None
+                or played_at > aggregated[vid]["last_played_at"]
+            ):
+                aggregated[vid]["last_played_at"] = played_at
+
+    ranked = []
+    for vid, count in counts.items():
+        item = aggregated[vid].copy()
+        item["play_count"] = count
+        item["language"] = detect_language(item["title"], item["artist"])
+        ranked.append(item)
+
+    ranked.sort(key=lambda item: (-item["play_count"], item["title"].lower()))
+    return ranked, sum(counts.values())
+
+
+def _parse_takeout_json(history_path: Path) -> list[dict]:
+    with history_path.open(encoding="utf-8") as handle:
+        history = json.load(handle)
+
+    rows: list[dict] = []
     for item in history:
         header = item.get("header", "")
         url = item.get("titleUrl", "")
@@ -110,38 +178,66 @@ def parse_takeout_history(path: Path) -> tuple[list[dict], int]:
         if subtitles:
             artist = clean_artist(subtitles[0].get("name", ""))
 
-        played_at = parse_played_at(item.get("time"))
-        counts[vid] += 1
-
-        if vid not in aggregated:
-            aggregated[vid] = {
+        rows.append(
+            {
                 "yt_video_id": vid,
                 "title": title,
                 "artist": artist,
-                "play_count": 0,
+                "last_played_at": parse_played_at(item.get("time")),
+                "thumbnail_url": thumbnail_for(vid),
+            }
+        )
+    return rows
+
+
+def _strip_html(value: str) -> str:
+    return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", value)).strip()
+
+
+def _parse_takeout_html(history_path: Path) -> list[dict]:
+    html = history_path.read_text(encoding="utf-8")
+    rows: list[dict] = []
+
+    for match in HTML_MUSIC_BLOCK_RE.finditer(html):
+        block = match.group(1)
+        title_match = HTML_TITLE_LINK_RE.search(block)
+        if not title_match:
+            continue
+
+        vid = video_id(title_match.group(1))
+        if not vid:
+            continue
+
+        artist_match = HTML_ARTIST_LINK_RE.search(block)
+        artist = clean_artist(_strip_html(artist_match.group(1))) if artist_match else ""
+
+        lines = [
+            _strip_html(part)
+            for part in re.split(r"<br\s*/?>", block, flags=re.IGNORECASE)
+            if _strip_html(part)
+        ]
+        played_at = parse_played_at(lines[-1]) if lines else None
+
+        rows.append(
+            {
+                "yt_video_id": vid,
+                "title": clean_title(_strip_html(title_match.group(2))),
+                "artist": artist,
                 "last_played_at": played_at,
                 "thumbnail_url": thumbnail_for(vid),
             }
-        else:
-            aggregated[vid]["title"] = title
-            if artist:
-                aggregated[vid]["artist"] = artist
-            if played_at and (
-                aggregated[vid]["last_played_at"] is None
-                or played_at > aggregated[vid]["last_played_at"]
-            ):
-                aggregated[vid]["last_played_at"] = played_at
+        )
 
-    ranked = []
-    for vid, count in counts.items():
-        row = aggregated[vid].copy()
-        row["play_count"] = count
-        row["language"] = detect_language(row["title"], row["artist"])
-        ranked.append(row)
+    return rows
 
-    ranked.sort(key=lambda item: (-item["play_count"], item["title"].lower()))
-    music_entries = sum(counts.values())
-    return ranked, music_entries
+
+def parse_takeout_history(path: Path) -> tuple[list[dict], int]:
+    history_path = find_watch_history(path)
+    if history_path.name == WATCH_HISTORY_HTML:
+        rows = _parse_takeout_html(history_path)
+    else:
+        rows = _parse_takeout_json(history_path)
+    return _aggregate_music_rows(rows)
 
 
 def upsert_songs(db: Session, ranked: list[dict]) -> tuple[int, int]:
@@ -182,7 +278,7 @@ def upsert_songs(db: Session, ranked: list[dict]) -> tuple[int, int]:
 
 
 def import_takeout(db: Session, source: Path) -> SyncRun:
-    run = SyncRun()
+    run = SyncRun(source="takeout")
     db.add(run)
     db.commit()
     db.refresh(run)

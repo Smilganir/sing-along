@@ -94,6 +94,8 @@ class SyncRun(Base):
 
     history_items: Mapped[int] = mapped_column(Integer, default=0)
 
+    source: Mapped[str | None] = mapped_column(String(32), nullable=True)
+
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 

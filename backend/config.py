@@ -50,6 +50,12 @@ _default_takeout = (
 )
 TAKEOUT_HISTORY_PATH = Path(os.getenv("TAKEOUT_HISTORY_PATH", str(_default_takeout)))
 
+_ytmusic_dir = BASE_DIR / "data" / "ytmusic"
+YTMUSIC_AUTH_PATH = Path(os.getenv("YTMUSIC_AUTH_PATH", str(_ytmusic_dir / "browser.json")))
+YTMUSIC_SNAPSHOT_PATH = Path(
+    os.getenv("YTMUSIC_SNAPSHOT_PATH", str(_ytmusic_dir / "history_snapshot.json"))
+)
+
 CORS_ORIGINS = [
     origin.strip()
     for origin in os.getenv(

@@ -601,6 +601,16 @@ export default function Sing() {
                     onClick={() => openSong(song.id)}
                   >
                     <span className="sing-song-rank">{rangeStart + index}</span>
+                    {song.thumbnail_url ? (
+                      <img
+                        className="sing-song-thumb"
+                        src={song.thumbnail_url}
+                        alt=""
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="sing-song-thumb sing-song-thumb--placeholder" aria-hidden />
+                    )}
                     <span className="sing-song-info">
                       <strong>{song.title}</strong>
                       <span>{song.artist || 'Unknown artist'}</span>
