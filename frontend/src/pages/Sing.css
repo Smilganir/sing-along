@@ -804,7 +804,7 @@
 }
 
 .sing-sheet-chords {
-  font-family: Consolas, 'Courier New', monospace;
+  font-family: var(--app-font, 'Heebo', sans-serif);
   font-weight: 700;
   color: var(--sing-chord);
   font-size: 0.95rem;
@@ -874,19 +874,51 @@
   color: var(--sing-muted);
 }
 
-/* negina.co.il: space-aligned chord rows mirror RTL lyrics */
+/* negina.co.il: LTR chord grid mirrored over RTL lyrics, shared font metrics */
+.sing-sheet--negina-he .sing-verse-block--negina {
+  --sing-negina-cell-size: 1rem;
+  font-family: var(--app-font, 'Heebo', sans-serif);
+  font-size: var(--sing-negina-cell-size);
+  line-height: 1.4;
+}
+
+.sing-sheet--negina-he .sing-verse-block--negina .sing-sheet-chords,
+.sing-sheet--negina-he .sing-verse-block--negina .sing-sheet-lyrics {
+  font: inherit;
+  letter-spacing: 0;
+  white-space: pre;
+  overflow-wrap: normal;
+  word-break: normal;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
 .sing-sheet--negina-he .sing-sheet-chords,
 .sing-sheet-chords--negina-he {
-  direction: rtl;
+  direction: ltr;
   text-align: right;
   unicode-bidi: plaintext;
   white-space: pre;
   overflow-wrap: normal;
   word-break: normal;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: var(--app-font, 'Heebo', sans-serif);
+  font-size: var(--sing-negina-cell-size, 1rem);
+  letter-spacing: 0;
+  line-height: 1.4;
+  font-weight: 700;
+  color: var(--sing-chord);
 }
 
-.sing-sheet--en .sing-sheet-chords {
+.sing-sheet--negina-he .sing-verse-block--negina .sing-sheet-lyrics {
+  direction: rtl;
+  text-align: right;
+  unicode-bidi: plaintext;
+  font-weight: 400;
+  color: var(--sing-text);
+}
+
+.sing-sheet--en:not(.sing-sheet--negina-he) .sing-sheet-chords {
   direction: ltr;
   text-align: left;
   unicode-bidi: isolate;
@@ -917,6 +949,10 @@
   color: var(--sing-muted);
   font-size: 0.9rem;
   padding: 0.5rem;
+}
+
+.sing-empty--error {
+  color: var(--app-error-text, #fca5a5);
 }
 
 @media (min-width: 1100px) {

@@ -41,6 +41,32 @@ function scanChordTokens(trimmed) {
   return chords.length > 0 ? chords : null;
 }
 
+/**
+ * Negina stores chord columns in LTR string indices; Hebrew lyrics render RTL.
+ * Mirror chord positions so LTR monospace chord rows align with RTL lyric rows.
+ */
+export function mirrorNeginaChordLine(chordLine, lyricLine) {
+  if (!chordLine?.trim() || !lyricLine) return chordLine;
+
+  const width = lyricLine.length;
+  const slots = Array(width).fill(' ');
+
+  for (const match of chordLine.matchAll(/\S+/g)) {
+    const chord = match[0];
+    const start = match.index ?? 0;
+    const mirroredStart = width - 1 - start;
+    if (mirroredStart < 0) continue;
+    for (let offset = 0; offset < chord.length; offset += 1) {
+      const index = mirroredStart + offset;
+      if (index < width) {
+        slots[index] = chord[offset];
+      }
+    }
+  }
+
+  return slots.join('').replace(/\s+$/, '');
+}
+
 export function tokenizeChordLine(line, { splitGluedChords = false } = {}) {
   if (!line) return [];
 

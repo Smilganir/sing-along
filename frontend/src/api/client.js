@@ -33,17 +33,34 @@ export function invalidateReadCache(prefix = '') {
 async function request(path, options = {}) {
   const token = getAdminToken();
   const authHeaders = token ? { 'X-Admin-Token': token } : {};
-  const response = await fetch(`${API_BASE}${path}`, {
-    credentials: 'include',
-    ...options,
-    headers: { ...authHeaders, ...options.headers },
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const detail = typeof data.detail === 'string' ? data.detail : response.statusText;
-    throw new Error(detail || 'Request failed');
+  const controller = new AbortController();
+  const timeoutMs = options.timeoutMs ?? 30_000;
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(`${API_BASE}${path}`, {
+      credentials: 'include',
+      ...options,
+      signal: controller.signal,
+      headers: { ...authHeaders, ...options.headers },
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const detail = typeof data.detail === 'string' ? data.detail : response.statusText;
+      throw new Error(detail || 'Request failed');
+    }
+    return data;
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error('Request timed out — is the backend running on port 8000?');
+    }
+    if (err instanceof TypeError) {
+      throw new Error('Cannot reach the API — start the backend (uvicorn on port 8000)');
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
   }
-  return data;
 }
 
 function jsonHeaders(extra = {}) {

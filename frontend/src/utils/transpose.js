@@ -47,15 +47,19 @@ export function transposeChord(chord, semitones) {
   const index = NOTES.indexOf(normalized);
   if (index === -1) return chord;
 
-  const newIndex = (index + semitones) % 12;
-  const normalizedNote = NOTES.at(newIndex);
+  const newIndex = ((index + semitones) % 12 + 12) % 12;
+  const note = NOTES[newIndex];
   const preferFlat = root.toLowerCase().includes('b');
   const newRoot =
-    preferFlat && SHARP_TO_FLAT[normalizedNote]
-      ? SHARP_TO_FLAT[normalizedNote]
-      : normalizedNote;
+    preferFlat && note.includes('#') && SHARP_TO_FLAT[note]
+      ? SHARP_TO_FLAT[note]
+      : note;
 
   return `${newRoot}${suffix}`;
+}
+
+function substituteChords(text, mapping) {
+  return text.replace(new RegExp(CHORD_PATTERN.source, 'g'), (full, chord) => mapping[chord] ?? full);
 }
 
 export function transposeSheet(text, semitones) {
@@ -65,16 +69,5 @@ export function transposeSheet(text, semitones) {
     extractChords(text).map((chord) => [chord, transposeChord(chord, semitones)]),
   );
 
-  let result = text;
-  for (const [oldChord, newChord] of Object.entries(mapping).sort(
-    (a, b) => b[0].length - a[0].length,
-  )) {
-    result = result.replace(new RegExp(`\\b${escapeRegExp(oldChord)}\\b`, 'g'), newChord);
-  }
-
-  return result;
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return substituteChords(text, mapping);
 }

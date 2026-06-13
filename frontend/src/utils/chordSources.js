@@ -1,4 +1,4 @@
-/** True when sheet content came from negina.co.il (aligned LTR chord rows over RTL lyrics). */
+/** True for negina.co.il sheets (space-aligned chord rows over RTL lyrics). */
 export function isNeginaSheet(chordSource, sourceUrl) {
   if (chordSource === 'negina') {
     return true;

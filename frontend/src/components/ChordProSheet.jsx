@@ -1,12 +1,16 @@
 import ChordToken from './ChordToken.jsx';
-import { lyricAnchorHash, parseChordPro, tokenizeChordLine } from '../utils/chordpro.js';
+import { lyricAnchorHash, mirrorNeginaChordLine, parseChordPro, tokenizeChordLine } from '../utils/chordpro.js';
 import { isNeginaSheet } from '../utils/chordSources.js';
 
-function ChordLine({ line, useNeginaHebrewLayout }) {
+function ChordLine({ line, lyricLine, useNeginaHebrewLayout }) {
+  const displayLine = useNeginaHebrewLayout && lyricLine
+    ? mirrorNeginaChordLine(line, lyricLine)
+    : line;
+
   if (useNeginaHebrewLayout) {
     return (
-      <pre className="sing-sheet-chords sing-sheet-chords--negina-he" dir="rtl">
-        {line}
+      <pre className="sing-sheet-chords sing-sheet-chords--negina-he" dir="ltr">
+        {displayLine}
       </pre>
     );
   }
@@ -35,8 +39,10 @@ function ChordLine({ line, useNeginaHebrewLayout }) {
 }
 
 export default function ChordProSheet({ text, language, lyricsOnly, chordSource, sourceUrl }) {
-  const isHebrew = language === 'he';
-  const useNeginaHebrewLayout = isHebrew && isNeginaSheet(chordSource, sourceUrl);
+  const fromNegina = isNeginaSheet(chordSource, sourceUrl);
+  // negina.co.il sheets are RTL-aligned even when language is "en" (mixed titles like Cute Boy)
+  const useNeginaHebrewLayout = fromNegina;
+  const isRtlSheet = language === 'he' || fromNegina;
   const blocks = parseChordPro(text, { lyricsOnly, neginaLayout: useNeginaHebrewLayout });
 
   if (blocks.length === 0) {
@@ -45,7 +51,7 @@ export default function ChordProSheet({ text, language, lyricsOnly, chordSource,
 
   const sheetClass = [
     'sing-sheet',
-    isHebrew ? 'sing-sheet--he' : 'sing-sheet--en',
+    isRtlSheet ? 'sing-sheet--he' : 'sing-sheet--en',
     useNeginaHebrewLayout ? 'sing-sheet--negina-he' : '',
   ]
     .filter(Boolean)
@@ -56,14 +62,18 @@ export default function ChordProSheet({ text, language, lyricsOnly, chordSource,
       {blocks.map((block, index) => (
         <div
           key={index}
-          className="sing-verse-block"
+          className={`sing-verse-block${useNeginaHebrewLayout ? ' sing-verse-block--negina' : ''}`}
           data-anchor={lyricAnchorHash(block.lyrics)}
         >
           {block.chords && !lyricsOnly && (
-            <ChordLine line={block.chords} useNeginaHebrewLayout={useNeginaHebrewLayout} />
+            <ChordLine
+              line={block.chords}
+              lyricLine={block.lyrics}
+              useNeginaHebrewLayout={useNeginaHebrewLayout}
+            />
           )}
           {block.lyrics && (
-            <pre className="sing-sheet-lyrics" dir={isHebrew ? 'rtl' : 'ltr'}>
+            <pre className="sing-sheet-lyrics" dir={isRtlSheet ? 'rtl' : 'ltr'}>
               {block.lyrics}
             </pre>
           )}

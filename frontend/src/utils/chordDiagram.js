@@ -119,7 +119,7 @@ const FINGER_DOT_ORANGE = '#9381CB';
 const FINGER_DOT_YELLOW = '#97CBE8';
 
 const FINGER_NUMBER_TEXT_RE =
-  /<text x='(\d+)' y='(\d+)' font-size='14' font-family='Arial' fill='black'>(\d)<\/text>/g;
+  /<text x='(\d+)' y='(\d+)' font-size='14' font-family='Heebo' fill='black'>(\d)<\/text>/g;
 
 function isFretAxisLabel(tag) {
   return /\bx=(['"])20\1/.test(tag);
@@ -144,7 +144,7 @@ export function adaptAgcSvgForDarkBg(svg) {
   out = out.replace(FINGER_NUMBER_TEXT_RE, (_match, x, y, digit) => {
     const cx = Number(x) + 4;
     const cy = Number(y) - 5;
-    return `<text x='${cx}' y='${cy}' font-size='14' font-family='Arial' fill='black' text-anchor='middle' dominant-baseline='middle'>${digit}</text>`;
+    return `<text x='${cx}' y='${cy}' font-size='14' font-family='Heebo' fill='black' text-anchor='middle' dominant-baseline='middle'>${digit}</text>`;
   });
 
   out = out.replace(/<text[^>]*>/g, (tag) => {

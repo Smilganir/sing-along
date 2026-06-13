@@ -1,4 +1,4 @@
-"""Build original vs easy ChordPro sheets from fetched chord content."""
+"""Transpose-based easy ChordPro sheets (computed at display time, not stored per song)."""
 
 from __future__ import annotations
 
@@ -30,6 +30,9 @@ EASY_CHORDS = frozenset(
     }
 )
 
+MINOR_KEY_TARGETS = ("Am", "Em", "G")
+MAJOR_KEY_TARGETS = ("C", "G", "Em")
+
 NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 FLAT_ALIASES = {
     "Db": "C#",
@@ -42,59 +45,6 @@ FLAT_ALIASES = {
 }
 SHARP_TO_FLAT = {v: k for k, v in FLAT_ALIASES.items()}
 
-# Open-shape substitutes when capo alone cannot simplify a progression.
-COERCE_AM = {
-    "A#": "A",
-    "A#m": "Am",
-    "Ab": "G",
-    "Abm": "Am",
-    "Bb": "A",
-    "Bbm": "Am",
-    "B": "Am",
-    "Bm": "Am",
-    "C#": "C",
-    "C#m": "Am",
-    "Db": "C",
-    "Dbm": "Dm",
-    "D#": "D",
-    "D#m": "Dm",
-    "Eb": "D",
-    "Ebm": "Dm",
-    "F#": "E",
-    "F#m": "Em",
-    "G#": "G",
-    "G#m": "Em",
-    "Gb": "F",
-    "Gbm": "F",
-    "Gm": "G",
-}
-
-COERCE_EM = {
-    "A#": "A",
-    "A#m": "Am",
-    "Ab": "G",
-    "Abm": "Am",
-    "Bb": "A",
-    "Bbm": "Am",
-    "B": "Em",
-    "Bm": "Am",
-    "C#": "C",
-    "C#m": "Am",
-    "Db": "C",
-    "Dbm": "Dm",
-    "D#": "D",
-    "D#m": "Dm",
-    "Eb": "D",
-    "Ebm": "Dm",
-    "F#": "E",
-    "F#m": "Em",
-    "G#": "G",
-    "G#m": "Em",
-    "Gb": "F",
-    "Gbm": "F",
-    "Gm": "G",
-}
-
 
 @dataclass
 class EasyVersionResult:
@@ -105,35 +55,60 @@ class EasyVersionResult:
 
 
 def apply_easy_versions(chordpro: str, language: str = "en") -> EasyVersionResult:
-    """Split fetched sheet into original (full) and optional easy version."""
+    """Build an easy sheet by transposing to Am/C (or Em/G fallbacks, then capo)."""
     chords = extract_chords(chordpro)
     if not chords:
         return _empty(chordpro)
 
-    if is_easy_progression(chords):
+    work = simplify_chords_in_sheet(chordpro)
+    work_chords = extract_chords(work)
+    simplified = [simplify_chord_name(chord) for chord in work_chords]
+
+    if is_easy_progression(simplified):
         return EasyVersionResult(
             chordpro_full=chordpro,
-            chordpro_easy=chordpro,
+            chordpro_easy=work,
             easy_note_he=None,
             easy_note_en=None,
         )
 
-    capo_result = _capo_easy_result(chordpro, chords, language)
-    if capo_result:
-        return capo_result
+    first = work_chords[0]
+    for target in _easy_key_targets(first):
+        shift = _shift_first_chord_to_target(first, target)
+        if shift is None:
+            continue
+        candidate = _evaluate_candidate(work, shift)
+        if candidate:
+            note_he, note_en = _easy_note(target, language)
+            return EasyVersionResult(
+                chordpro_full=chordpro,
+                chordpro_easy=candidate,
+                easy_note_he=note_he,
+                easy_note_en=note_en,
+            )
 
-    simplified = simplify_chords_in_sheet(chordpro)
-    simplified_chords = extract_chords(simplified)
-    if simplified_chords != chords:
-        capo_result = _capo_easy_result(chordpro, simplified_chords, language, sheet=simplified)
-        if capo_result:
-            return capo_result
+    for capo in range(1, 12):
+        candidate = _evaluate_candidate(work, -capo)
+        if candidate:
+            note_he = f"גרסה קלה — קאפו בסריג {capo} (צורות פתוחות)"
+            note_en = f"Easy version — capo on fret {capo} (open shapes)"
+            return EasyVersionResult(
+                chordpro_full=chordpro,
+                chordpro_easy=candidate,
+                easy_note_he=note_he,
+                easy_note_en=note_en,
+            )
 
-    fallback = _fallback_am_em_key(chordpro, simplified, language)
-    if fallback:
-        return fallback
-
-    return _empty(chordpro)
+    primary = _easy_key_targets(first)[0]
+    shift = _shift_first_chord_to_target(first, primary) or 0
+    fallback = simplify_chords_in_sheet(transpose_sheet(work, shift))
+    note_he, note_en = _easy_note(primary, language)
+    return EasyVersionResult(
+        chordpro_full=chordpro,
+        chordpro_easy=fallback,
+        easy_note_he=note_he,
+        easy_note_en=note_en,
+    )
 
 
 def _empty(chordpro: str) -> EasyVersionResult:
@@ -145,130 +120,51 @@ def _empty(chordpro: str) -> EasyVersionResult:
     )
 
 
-def _capo_easy_result(
-    chordpro_full: str,
-    chords: list[str],
-    language: str,
-    *,
-    sheet: str | None = None,
-) -> EasyVersionResult | None:
-    easy_capo = _best_easy_capo(chords)
-    if easy_capo is None:
-        return None
-
-    source = sheet if sheet is not None else chordpro_full
-    easy = transpose_sheet(source, -easy_capo)
-    note_he = f"גרסה קלה — קאפו בסריג {easy_capo} כדי לנגן עם המקור"
-    note_en = f"Easy version — capo on fret {easy_capo} to match the original"
-    return EasyVersionResult(
-        chordpro_full=chordpro_full,
-        chordpro_easy=easy,
-        easy_note_he=note_he,
-        easy_note_en=note_en,
-    )
+def _easy_key_targets(first_chord: str) -> tuple[str, ...]:
+    return MINOR_KEY_TARGETS if _is_minor_chord(first_chord) else MAJOR_KEY_TARGETS
 
 
-def _fallback_am_em_key(
-    chordpro_full: str,
-    chordpro_work: str,
-    language: str,
-) -> EasyVersionResult | None:
-    chords = extract_chords(chordpro_work)
-    if not chords:
-        return None
-
-    target = "Am" if _minor_leaning(chords) else "Em"
-    best: tuple[int, int, dict[str, str]] | None = None
-
-    for shift in range(-11, 12):
-        mapping = _coerce_mapping(chords, shift, target)
-        coerced = [mapping[chord] for chord in chords]
-        if not is_easy_progression(coerced):
-            continue
-        preserved = sum(1 for chord in chords if mapping[chord] == transpose_chord(chord, shift))
-        if best is None or preserved > best[1] or (preserved == best[1] and abs(shift) < abs(best[0])):
-            best = (shift, preserved, mapping)
-
-    if best is None:
-        shift = _shift_first_chord_to_target(chords[0], target)
-        mapping = _coerce_mapping(chords, shift, target)
-        coerced = [mapping[chord] for chord in chords]
-        if not is_easy_progression(coerced):
-            mapping = {
-                chord: _coerce_to_key(transpose_chord(chord, shift), target) for chord in chords
-            }
-        best = (shift, 0, mapping)
-
-    shift, _, mapping = best
-    easy = apply_chord_mapping(transpose_sheet(chordpro_work, shift), mapping, semitones=shift, source_chords=chords)
-
-    if target == "Am":
-        note_he = "גרסה קלה — צורות פתוחות בסול מ (Am key)"
-        note_en = "Easy version — simplified open shapes in Am key"
-    else:
-        note_he = "גרסה קלה — צורות פתוחות במי מ (Em key)"
-        note_en = "Easy version — simplified open shapes in Em key"
-
-    return EasyVersionResult(
-        chordpro_full=chordpro_full,
-        chordpro_easy=easy,
-        easy_note_he=note_he,
-        easy_note_en=note_en,
-    )
+def _is_minor_chord(chord: str) -> bool:
+    simple = simplify_chord_name(chord)
+    return simple.endswith("m") and not simple.endswith("maj")
 
 
-def _coerce_mapping(chords: list[str], shift: int, target: str) -> dict[str, str]:
-    return {
-        chord: _coerce_to_key(transpose_chord(chord, shift), target)
-        for chord in chords
+def _evaluate_candidate(work: str, shift: int) -> str | None:
+    candidate = simplify_chords_in_sheet(transpose_sheet(work, shift))
+    chords = [simplify_chord_name(chord) for chord in extract_chords(candidate)]
+    return candidate if is_easy_progression(chords) else None
+
+
+def _easy_note(key: str, language: str) -> tuple[str, str]:
+    labels = {
+        "Am": ("סול מ (Am)", "Am key"),
+        "C": ("דו מז'ור (C)", "C major"),
+        "Em": ("מי מ (Em)", "Em key"),
+        "G": ("סול מז'ור (G)", "G major"),
     }
+    he_label, en_label = labels.get(key, ("", key))
+    if language == "he":
+        return f"גרסה קלה — {he_label}", f"Easy version — {en_label}"
+    return f"גרסה קלה — {he_label}", f"Easy version — {en_label}"
+
+
+def _substitute_chords(text: str, mapping: dict[str, str]) -> str:
+    def replace_match(match: re.Match[str]) -> str:
+        chord = match.group(1)
+        return mapping.get(chord, chord)
+
+    return CHORD_PATTERN.sub(replace_match, text)
 
 
 def apply_chord_mapping(
     text: str,
     mapping: dict[str, str],
     *,
-    semitones: int,
-    source_chords: list[str],
+    semitones: int = 0,
+    source_chords: list[str] | None = None,
 ) -> str:
-    """Replace transposed chord names with coerced easy shapes."""
-    replacements: dict[str, str] = {}
-    for chord in source_chords:
-        transposed = transpose_chord(chord, semitones)
-        replacements[transposed] = mapping[chord]
-
-    result = text
-    for old, new in sorted(replacements.items(), key=lambda item: -len(item[0])):
-        if old != new:
-            result = re.sub(rf"\b{re.escape(old)}\b", new, result)
-    return result
-
-
-def _minor_leaning(chords: list[str]) -> bool:
-    minor = 0
-    for chord in chords:
-        simple = simplify_chord_name(chord)
-        if simple.endswith("m") and not simple.endswith("maj"):
-            minor += 1
-    return minor >= max(1, len(chords) // 2)
-
-
-def _shift_first_chord_to_target(first_chord: str, target: str) -> int:
-    first = simplify_chord_name(first_chord)
-    for shift in range(-11, 12):
-        if simplify_chord_name(transpose_chord(first, shift)) == target:
-            return shift
-    return 0
-
-
-def _coerce_to_key(chord: str, target: str) -> str:
-    simplified = simplify_chord_name(chord)
-    if simplified in EASY_CHORDS:
-        return simplified
-    table = COERCE_AM if target == "Am" else COERCE_EM
-    if simplified in table:
-        return table[simplified]
-    return "Am" if target == "Am" else "Em"
+    del semitones, source_chords
+    return _substitute_chords(text, mapping)
 
 
 def simplify_chord_name(chord: str) -> str:
@@ -294,29 +190,23 @@ def simplify_chord_name(chord: str) -> str:
 
 def simplify_chords_in_sheet(text: str) -> str:
     mapping = {chord: simplify_chord_name(chord) for chord in extract_chords(text)}
-    result = text
-    for old, new in sorted(mapping.items(), key=lambda item: -len(item[0])):
-        if old != new:
-            result = re.sub(rf"\b{re.escape(old)}\b", new, result)
-    return result
+    return _substitute_chords(text, mapping)
 
 
 def sheets_drifted_from_source(chordpro_full: str | None, fetched_content: str) -> bool:
-    """True when stored full sheet no longer matches open-chord content from the source URL."""
     if not chordpro_full or not fetched_content.strip():
         return False
     src_chords = extract_chords(fetched_content)
-    if not src_chords or not is_easy_progression(src_chords):
+    if not src_chords or not is_easy_progression([simplify_chord_name(c) for c in src_chords]):
         return False
     full_chords = extract_chords(chordpro_full)
     return full_chords != src_chords
 
 
 def has_inverted_easy_pattern(chordpro_full: str | None, chordpro_easy: str | None) -> bool:
-    """True when full looks like easy transposed up (legacy bug) rather than a real capo split."""
     if not chordpro_full or not chordpro_easy or chordpro_full == chordpro_easy:
         return False
-    easy_chords = extract_chords(chordpro_easy)
+    easy_chords = [simplify_chord_name(c) for c in extract_chords(chordpro_easy)]
     if not is_easy_progression(easy_chords):
         return False
     for capo in range(1, 10):
@@ -346,13 +236,8 @@ def is_easy_progression(chords: list[str]) -> bool:
 def transpose_sheet(text: str, semitones: int) -> str:
     if semitones == 0:
         return text
-    mapping = {}
-    for chord in extract_chords(text):
-        mapping[chord] = transpose_chord(chord, semitones)
-    result = text
-    for old, new in sorted(mapping.items(), key=lambda item: -len(item[0])):
-        result = re.sub(rf"\b{re.escape(old)}\b", new, result)
-    return result
+    mapping = {chord: transpose_chord(chord, semitones) for chord in extract_chords(text)}
+    return _substitute_chords(text, mapping)
 
 
 def transpose_chord(chord: str, semitones: int) -> str:
@@ -364,17 +249,18 @@ def transpose_chord(chord: str, semitones: int) -> str:
     if normalized not in NOTES:
         return chord
     index = (NOTES.index(normalized) + semitones) % 12
+    note = NOTES[index]
     prefer_flat = "b" in root.lower()
-    if prefer_flat and NOTES[index] in SHARP_TO_FLAT:
-        new_root = SHARP_TO_FLAT[NOTES[index]]
+    if prefer_flat and "#" in note and note in SHARP_TO_FLAT:
+        new_root = SHARP_TO_FLAT[note]
     else:
-        new_root = NOTES[index]
+        new_root = note
     return f"{new_root}{suffix}"
 
 
-def _best_easy_capo(chords: list[str]) -> int | None:
-    for capo in range(1, 12):
-        transposed = [transpose_chord(chord, -capo) for chord in chords]
-        if is_easy_progression(transposed):
-            return capo
+def _shift_first_chord_to_target(first_chord: str, target: str) -> int | None:
+    first = simplify_chord_name(first_chord)
+    for shift in range(-11, 12):
+        if simplify_chord_name(transpose_chord(first, shift)) == target:
+            return shift
     return None

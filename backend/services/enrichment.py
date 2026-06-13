@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from db.models import Song
 from services.chordpro_builder import build_chordpro, build_status
 from services.chords_fetcher import fetch_chords, fetch_chords_from_url
-from services.easy_chords import apply_easy_versions, has_inverted_easy_pattern, sheets_drifted_from_source
+from services.easy_chords import has_inverted_easy_pattern, sheets_drifted_from_source
 from services.lyrics_fetcher import LyricsResult, fetch_lyrics
 
 MAX_ENRICH_HISTORY = 10
@@ -94,11 +94,10 @@ def enrich_song(song: Song, force: bool = False) -> str:
 
     if chordpro:
         if has_chords:
-            versions = apply_easy_versions(chordpro, song.language)
-            song.chordpro_full = versions.chordpro_full
-            song.chordpro_easy = versions.chordpro_easy
-            song.easy_note_he = versions.easy_note_he
-            song.easy_note_en = versions.easy_note_en
+            song.chordpro_full = chordpro
+            song.chordpro_easy = None
+            song.easy_note_he = None
+            song.easy_note_en = None
         else:
             song.chordpro_full = chordpro
             song.chordpro_easy = None
@@ -150,11 +149,10 @@ def enrich_song_from_url(song: Song, source_url: str) -> str:
 
     if chordpro:
         if has_chords:
-            versions = apply_easy_versions(chordpro, song.language)
-            song.chordpro_full = versions.chordpro_full
-            song.chordpro_easy = versions.chordpro_easy
-            song.easy_note_he = versions.easy_note_he
-            song.easy_note_en = versions.easy_note_en
+            song.chordpro_full = chordpro
+            song.chordpro_easy = None
+            song.easy_note_he = None
+            song.easy_note_en = None
         else:
             song.chordpro_full = chordpro
             song.chordpro_easy = None
@@ -202,11 +200,10 @@ def repair_song_sheets_from_url(song: Song) -> bool:
     if not chordpro or not has_chords:
         return False
 
-    versions = apply_easy_versions(chordpro, song.language)
-    song.chordpro_full = versions.chordpro_full
-    song.chordpro_easy = versions.chordpro_easy
-    song.easy_note_he = versions.easy_note_he
-    song.easy_note_en = versions.easy_note_en
+    song.chordpro_full = chordpro
+    song.chordpro_easy = None
+    song.easy_note_he = None
+    song.easy_note_en = None
     song.chord_source = chords.source
     return True
 
@@ -359,6 +356,7 @@ def backfill_missing_easy_sheets(
     dry_run: bool = False,
     limit: int | None = None,
 ) -> BackfillEasySummary:
+    """Clear legacy stored easy sheets (easy version is computed at display time)."""
     query = (
         db.query(Song)
         .filter(
@@ -374,12 +372,7 @@ def backfill_missing_easy_sheets(
     summary = BackfillEasySummary(scanned=0, updated=0, skipped=0, unchanged=0)
     for song in query.all():
         summary.scanned += 1
-        if song.chordpro_easy and song.chordpro_easy.strip():
-            summary.skipped += 1
-            continue
-
-        versions = apply_easy_versions(song.chordpro_full or "", song.language)
-        if not versions.chordpro_easy:
+        if not song.chordpro_easy and not song.easy_note_he and not song.easy_note_en:
             summary.unchanged += 1
             continue
 
@@ -387,9 +380,9 @@ def backfill_missing_easy_sheets(
         if dry_run:
             continue
 
-        song.chordpro_easy = versions.chordpro_easy
-        song.easy_note_he = versions.easy_note_he
-        song.easy_note_en = versions.easy_note_en
+        song.chordpro_easy = None
+        song.easy_note_he = None
+        song.easy_note_en = None
 
     if not dry_run:
         db.commit()

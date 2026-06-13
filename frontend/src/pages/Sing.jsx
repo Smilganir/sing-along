@@ -9,6 +9,7 @@ import { useFavorites } from '../context/FavoritesContext.jsx';
 import { useLocalStorage } from '../hooks/useLocalStorage.js';
 import { youtubeEmbedUrl } from '../utils/chordpro.js';
 import { adminSongHref } from '../utils/routes.js';
+import { buildEasyVersion } from '../utils/easyVersion.js';
 import { transposeSheet } from '../utils/transpose.js';
 
 import './Sing.css';
@@ -88,6 +89,7 @@ export default function Sing() {
   const [sortBy, setSortBy] = useState('play_count');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [listError, setListError] = useState('');
   const [selectedSong, setSelectedSong] = useState(null);
   const [easyMode, setEasyMode] = useState(false);
   const [roomState, setRoomState] = useState(null);
@@ -150,6 +152,7 @@ export default function Sing() {
 
   const loadList = useCallback(async () => {
     setLoading(true);
+    setListError('');
     try {
       const result = await getSongs({
         lang: langFilter,
@@ -162,9 +165,10 @@ export default function Sing() {
       });
       setSongs(result.items);
       setTotalSongs(result.total);
-    } catch {
+    } catch (err) {
       setSongs([]);
       setTotalSongs(0);
+      setListError(err instanceof Error ? err.message : 'Failed to load songs');
     } finally {
       setLoading(false);
     }
@@ -271,17 +275,22 @@ export default function Sing() {
     }
   }
 
+  const easyVersion = useMemo(
+    () => buildEasyVersion(selectedSong?.chordpro_full || '', selectedSong?.language || 'en'),
+    [selectedSong?.chordpro_full, selectedSong?.language],
+  );
+
   const sheetText = useMemo(() => {
     if (!selectedSong) return '';
     let text = '';
-    if (easyMode && selectedSong.chordpro_easy) text = selectedSong.chordpro_easy;
+    if (easyMode && easyVersion.available) text = easyVersion.text;
     else text = selectedSong.chordpro_full || selectedSong.plain_lyrics || '';
 
     if (!lyricsOnly && transposeSemitones !== 0 && text) {
       text = transposeSheet(text, transposeSemitones);
     }
     return text;
-  }, [selectedSong, easyMode, lyricsOnly, transposeSemitones]);
+  }, [selectedSong, easyMode, easyVersion, lyricsOnly, transposeSemitones]);
 
   useEffect(() => {
     if (!roomState?.scroll_anchor) return;
@@ -371,20 +380,17 @@ export default function Sing() {
     if (lyricsOnly) setEasyMode(false);
   }, [lyricsOnly]);
 
-  const hasEasy = Boolean(selectedSong?.chordpro_easy?.trim());
+  const hasEasy = easyVersion.available;
   const showChords = !lyricsOnly;
-  const showEasyToggle = showChords && Boolean(selectedSong);
+  const showEasyToggle = showChords && Boolean(selectedSong?.chordpro_full?.trim());
   const hasChordSheet = Boolean(
-    (easyMode && selectedSong?.chordpro_easy?.trim()) || selectedSong?.chordpro_full?.trim(),
+    (easyMode && easyVersion.available) || selectedSong?.chordpro_full?.trim(),
   );
   const showTranspose = showChords && hasChordSheet;
 
-  const easyNote =
-    easyMode && selectedSong
-      ? selectedSong.language === 'he'
-        ? selectedSong.easy_note_he
-        : selectedSong.easy_note_en
-      : null;
+  const easyNote = easyMode && easyVersion.available
+    ? (selectedSong?.language === 'he' ? easyVersion.noteHe : easyVersion.noteEn)
+    : null;
 
   const embedUrl = showYoutube && selectedSong?.youtube_url
     ? youtubeEmbedUrl(selectedSong.youtube_url)
@@ -582,6 +588,8 @@ export default function Sing() {
 
           {loading ? (
             <p className="sing-empty">Loading…</p>
+          ) : listError ? (
+            <p className="sing-empty sing-empty--error">{listError}</p>
           ) : songs.length === 0 ? (
             <p className="sing-empty">
               {sortBy === 'favorites'

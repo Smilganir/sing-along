@@ -9,6 +9,7 @@ export default defineConfig(({ mode }) => {
     base,
     plugins: [react()],
     server: {
+      host: '127.0.0.1',
       port: 5175,
       strictPort: true,
       proxy: {

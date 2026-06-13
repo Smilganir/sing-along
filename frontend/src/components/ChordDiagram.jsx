@@ -212,7 +212,7 @@ export default function ChordDiagram({ chord, size = 1, coloredFingers = true, s
                   fontSize="8"
                   fontWeight={fret === -1 ? '400' : '700'}
                   fill={fret === -1 ? 'var(--chord-diagram-muted)' : 'var(--chord-diagram-accent)'}
-                  fontFamily="monospace"
+                  fontFamily="Heebo, sans-serif"
                 >
                   {note}
                 </text>
