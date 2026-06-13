@@ -794,38 +794,107 @@ def _extract_tab4u_content(soup: BeautifulSoup) -> str:
     return "\n".join(lines).strip()
 
 
-def _extract_negina_content(soup: BeautifulSoup) -> str:
-    chords = [
-        node.get_text(strip=True)
-        for node in soup.select(".chord")
-        if node.get_text(strip=True) not in {"+", "−", "0", ""}
-    ]
-    if not chords:
+def _negina_phrase_lyric(phrase) -> str:
+    lyric = phrase.select_one(".lyric")
+    if not lyric:
+        return ""
+    for gutter in lyric.select(".gutter"):
+        gutter.decompose()
+    return re.sub(r"\s+", " ", lyric.get_text(strip=True))
+
+
+def _negina_phrase_chord(phrase) -> str | None:
+    chord = phrase.select_one(".chord")
+    if not chord:
+        return None
+    text = chord.get_text(strip=True)
+    if text in {"+", "−", "0", ""}:
+        return None
+    return text
+
+
+def _build_negina_chord_line(parts: list[tuple[str | None, str]]) -> str:
+    lyric = "".join(fragment for _, fragment in parts)
+    placements: list[tuple[int, str]] = []
+    position = 0
+
+    for chord, fragment in parts:
+        if chord:
+            placements.append((position, chord))
+        position += len(fragment)
+
+    if not placements:
         return ""
 
-    deduped: list[str] = []
-    for chord in chords:
-        if not deduped or deduped[-1] != chord:
-            deduped.append(chord)
+    end = len(lyric)
+    for start, chord in placements:
+        end = max(end, start + len(chord))
+    slots = [" "] * end
 
-    lyric_lines: list[str] = []
+    for start, chord in placements:
+        while start < len(slots) and any(
+            slots[index] != " "
+            for index in range(start, min(start + len(chord), len(slots)))
+        ):
+            start += 1
+        needed = start + len(chord)
+        if needed > len(slots):
+            slots.extend([" "] * (needed - len(slots)))
+        for offset, char in enumerate(chord):
+            index = start + offset
+            if index < len(slots):
+                slots[index] = char
+
+    return "".join(slots).rstrip()
+
+
+def _negina_flush_line(parts: list[tuple[str | None, str]], lines: list[str]) -> None:
+    if not parts:
+        return
+
+    lyric = "".join(fragment for _, fragment in parts).strip()
+    has_chords = any(chord for chord, _ in parts if chord)
+    if not lyric and not has_chords:
+        return
+
+    if has_chords:
+        chord_line = _build_negina_chord_line(parts)
+        if chord_line.strip():
+            lines.append(chord_line)
+    if lyric:
+        lines.append(lyric)
+
+
+def _extract_negina_content(soup: BeautifulSoup) -> str:
     page = soup.select_one(".song-page-new") or soup
-    for line in page.get_text("\n").splitlines():
-        stripped = line.strip()
-        if not stripped or len(stripped) > 120:
-            continue
-        if re.search(r"[\u0590-\u05FF]", stripped) and not stripped.startswith("אקורדים"):
-            if stripped not in {
-                "לחצ/י לצפייה בשאר האקורדים",
-                "גירסה קלה",
-                "שינוי טון",
-                "גודל פונט",
-            }:
-                lyric_lines.append(stripped)
+    container = page.select_one(".song-text__wrp") or page
+    phrases = container.select(".phrase")
+    if not phrases:
+        return ""
 
-    body = [" ".join(deduped[:16]), ""]
-    body.extend(lyric_lines[:40])
-    return "\n".join(body).strip()
+    lines: list[str] = []
+    current: list[tuple[str | None, str]] = []
+
+    for phrase in phrases:
+        classes = phrase.get("class", [])
+        chord = _negina_phrase_chord(phrase)
+        lyric = _negina_phrase_lyric(phrase)
+        is_join = "join" in classes
+        is_no_lyric = "noLyric" in classes
+
+        if is_no_lyric and not lyric:
+            if chord:
+                current.append((chord, ""))
+            continue
+
+        if not is_join and current:
+            _negina_flush_line(current, lines)
+            current = []
+
+        current.append((chord, lyric))
+
+    _negina_flush_line(current, lines)
+    return "\n".join(lines).strip()
 
 
 def _looks_like_chords(content: str) -> bool:

@@ -16,6 +16,31 @@ function normalizeChordToken(token) {
   return token.replace(/^[(]+|[,;)]+$/g, '').replace(/\s*x\d+$/i, '');
 }
 
+function scanChordTokens(trimmed) {
+  let index = 0;
+  const chords = [];
+
+  while (index < trimmed.length) {
+    if (trimmed[index] === ' ') {
+      index += 1;
+      continue;
+    }
+
+    const rest = trimmed.slice(index);
+    const match = rest.match(
+      /^([A-G][#b]?(?:maj7|maj|min7|min|m7|m9|m11|m13|m|sus4|sus2|sus|add9|add11|add|dim7|dim|aug7|aug|6|7|9|11|13)?(?:\/[A-G][#b]?)?)/i,
+    );
+    if (!match) {
+      return null;
+    }
+
+    chords.push(match[1]);
+    index += match[1].length;
+  }
+
+  return chords.length > 0 ? chords : null;
+}
+
 export function tokenizeChordLine(line) {
   if (!line) return [];
 
@@ -42,6 +67,12 @@ export function tokenizeChordLine(line) {
 export function isChordOnlyLine(line) {
   const trimmed = line.trim();
   if (!trimmed) return false;
+
+  const scanned = scanChordTokens(trimmed);
+  if (scanned) {
+    return true;
+  }
+
   const tokens = trimmed.split(/\s+/);
   return tokens.every((token) => {
     const clean = normalizeChordToken(token);

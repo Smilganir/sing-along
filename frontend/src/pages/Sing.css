@@ -375,6 +375,7 @@
   display: flex;
   align-items: center;
   gap: 0.65rem;
+  direction: ltr;
   width: 100%;
   min-width: 0;
   border: 1px solid transparent;
@@ -432,6 +433,7 @@
   min-width: 0;
   flex: 1;
   overflow-wrap: anywhere;
+  text-align: start;
 }
 
 .sing-song-info strong {

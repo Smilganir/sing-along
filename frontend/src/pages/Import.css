@@ -87,6 +87,7 @@
   text-align: inherit;
   font: inherit;
   color: inherit;
+  direction: ltr;
 }
 
 .import-row-remove {
@@ -608,6 +609,7 @@
 
 .import-row-body {
   min-width: 0;
+  text-align: start;
 }
 
 .import-title {

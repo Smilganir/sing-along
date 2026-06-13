@@ -597,7 +597,7 @@ export default function Sing() {
                   <button
                     type="button"
                     className={`sing-song-item ${selectedSong?.id === song.id ? 'sing-song-item--active' : ''} ${roomState?.song_id === song.id ? 'sing-song-item--room' : ''}`}
-                    dir={song.language === 'he' ? 'rtl' : 'ltr'}
+                    dir="ltr"
                     onClick={() => openSong(song.id)}
                   >
                     <span className="sing-song-rank">{rangeStart + index}</span>
@@ -611,7 +611,10 @@ export default function Sing() {
                     ) : (
                       <div className="sing-song-thumb sing-song-thumb--placeholder" aria-hidden />
                     )}
-                    <span className="sing-song-info">
+                    <span
+                      className="sing-song-info"
+                      dir={song.language === 'he' ? 'rtl' : 'ltr'}
+                    >
                       <strong>{song.title}</strong>
                       <span>{song.artist || 'Unknown artist'}</span>
                     </span>

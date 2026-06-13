@@ -474,7 +474,7 @@ export default function Import() {
                   <button
                     type="button"
                     className="import-row-main"
-                    dir={song.language === 'he' ? 'rtl' : 'ltr'}
+                    dir="ltr"
                     onClick={() => openSong(song.id)}
                   >
                     <span className="import-rank">{rangeStart + index}</span>
@@ -488,7 +488,10 @@ export default function Import() {
                     ) : (
                       <div className="import-thumb import-thumb--placeholder" aria-hidden />
                     )}
-                    <div className="import-row-body">
+                    <div
+                      className="import-row-body"
+                      dir={song.language === 'he' ? 'rtl' : 'ltr'}
+                    >
                       <h2 className="import-title">{song.title}</h2>
                       <p className="import-artist">{song.artist || 'Unknown artist'}</p>
                     </div>
