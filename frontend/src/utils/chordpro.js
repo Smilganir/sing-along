@@ -41,7 +41,7 @@ function scanChordTokens(trimmed) {
   return chords.length > 0 ? chords : null;
 }
 
-export function tokenizeChordLine(line) {
+export function tokenizeChordLine(line, { splitGluedChords = false } = {}) {
   if (!line) return [];
 
   const tokens = [];
@@ -51,6 +51,19 @@ export function tokenizeChordLine(line) {
     if (/^\s+$/.test(text)) {
       tokens.push({ type: 'space', text });
       continue;
+    }
+
+    if (splitGluedChords) {
+      const scanned = scanChordTokens(text.trim());
+      if (scanned && scanned.length > 1) {
+        scanned.forEach((chord, index) => {
+          if (index > 0) {
+            tokens.push({ type: 'space', text: ' ' });
+          }
+          tokens.push({ type: 'chord', text: chord, chord });
+        });
+        continue;
+      }
     }
 
     const clean = normalizeChordToken(text);
@@ -114,10 +127,21 @@ function isLyricLine(trimmed) {
   return true;
 }
 
-function pushBlock(blocks, chords, lyrics, { lyricsOnly = false, showChords = true } = {}) {
+const NEGINA_SECTION_HEADERS = new Set(['בית', 'פזמון', 'מעבר', 'פתיחה', 'סיום', 'גשר']);
+
+function isNeginaSectionHeader(trimmed) {
+  return NEGINA_SECTION_HEADERS.has(trimmed);
+}
+
+function pushBlock(
+  blocks,
+  chords,
+  lyrics,
+  { lyricsOnly = false, showChords = true, allowChordOnly = false } = {},
+) {
   if (lyricsOnly && !lyrics) return;
   if (!chords && !lyrics) return;
-  if (showChords && !lyricsOnly && chords && !lyrics) return;
+  if (showChords && !lyricsOnly && chords && !lyrics && !allowChordOnly) return;
   blocks.push({
     type: 'verse',
     chords: lyricsOnly ? null : chords,
@@ -125,7 +149,7 @@ function pushBlock(blocks, chords, lyrics, { lyricsOnly = false, showChords = tr
   });
 }
 
-export function parseChordPro(text, { lyricsOnly = false } = {}) {
+export function parseChordPro(text, { lyricsOnly = false, neginaLayout = false } = {}) {
   if (!text?.trim()) return [];
 
   const showChords = !lyricsOnly;
@@ -146,8 +170,21 @@ export function parseChordPro(text, { lyricsOnly = false } = {}) {
       continue;
     }
 
+    if (neginaLayout && isNeginaSectionHeader(trimmed)) {
+      if (pendingChords) {
+        pushBlock(blocks, pendingChords, null, { lyricsOnly, showChords, allowChordOnly: true });
+        pendingChords = null;
+      }
+      pushBlock(blocks, null, trimmed, { lyricsOnly, showChords });
+      continue;
+    }
+
     if (isChordOnlyLine(trimmed)) {
-      pendingChords = pendingChords ? `${pendingChords}   ${trimmed}` : trimmed;
+      pendingChords = neginaLayout
+        ? rawLine.replace(/\s+$/, '')
+        : pendingChords
+          ? `${pendingChords}   ${trimmed}`
+          : trimmed;
       continue;
     }
 
@@ -159,16 +196,16 @@ export function parseChordPro(text, { lyricsOnly = false } = {}) {
     }
 
     if (pendingChords && !lyricsOnly) {
-      pushBlock(blocks, pendingChords, null, { lyricsOnly, showChords });
+      pushBlock(blocks, pendingChords, null, { lyricsOnly, showChords, allowChordOnly: neginaLayout });
       pendingChords = null;
     }
   }
 
   if (pendingChords && !lyricsOnly) {
-    pushBlock(blocks, pendingChords, null, { lyricsOnly, showChords });
+    pushBlock(blocks, pendingChords, null, { lyricsOnly, showChords, allowChordOnly: neginaLayout });
   }
 
-  return blocks.filter((block) => block.lyrics);
+  return blocks.filter((block) => block.lyrics || (neginaLayout && block.chords));
 }
 
 /** Stable hash for a lyric line — shared scroll anchor across chord/lyrics-only views. */

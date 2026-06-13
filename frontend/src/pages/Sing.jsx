@@ -811,6 +811,8 @@ export default function Sing() {
                       text={sheetText}
                       language={selectedSong.language}
                       lyricsOnly={lyricsOnly}
+                      chordSource={selectedSong.chord_source}
+                      sourceUrl={selectedSong.source_url}
                     />
                   </Suspense>
                 </div>

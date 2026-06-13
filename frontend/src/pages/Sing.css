@@ -874,10 +874,16 @@
   color: var(--sing-muted);
 }
 
-.sing-sheet--he .sing-sheet-chords {
+/* negina.co.il: space-aligned chord rows mirror RTL lyrics */
+.sing-sheet--negina-he .sing-sheet-chords,
+.sing-sheet-chords--negina-he {
   direction: rtl;
   text-align: right;
   unicode-bidi: plaintext;
+  white-space: pre;
+  overflow-wrap: normal;
+  word-break: normal;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 .sing-sheet--en .sing-sheet-chords {

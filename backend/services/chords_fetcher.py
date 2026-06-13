@@ -815,13 +815,21 @@ def _negina_phrase_chord(phrase) -> str | None:
 
 def _build_negina_chord_line(parts: list[tuple[str | None, str]]) -> str:
     lyric = "".join(fragment for _, fragment in parts)
+    chords = [chord for chord, _ in parts if chord]
+
+    if not lyric.strip() and chords:
+        return " ".join(chords)
+
     placements: list[tuple[int, str]] = []
     position = 0
 
     for chord, fragment in parts:
         if chord:
             placements.append((position, chord))
-        position += len(fragment)
+        if fragment:
+            position += len(fragment)
+        elif chord:
+            position += len(chord) + 1
 
     if not placements:
         return ""
@@ -882,8 +890,11 @@ def _extract_negina_content(soup: BeautifulSoup) -> str:
         is_join = "join" in classes
         is_no_lyric = "noLyric" in classes
 
-        if is_no_lyric and not lyric:
+        if is_no_lyric and not lyric.strip():
             if chord:
+                if current and all(existing_chord is None for existing_chord, _ in current):
+                    _negina_flush_line(current, lines)
+                    current = []
                 current.append((chord, ""))
             continue
 
