@@ -9,7 +9,7 @@ import { useFavorites } from '../context/FavoritesContext.jsx';
 import { useLocalStorage } from '../hooks/useLocalStorage.js';
 import { youtubeEmbedUrl } from '../utils/chordpro.js';
 import { adminSongHref } from '../utils/routes.js';
-import { buildEasyVersion } from '../utils/easyVersion.js';
+import { buildEasyVersion, formatEasyDisplayNote } from '../utils/easyVersion.js';
 import { transposeSheet } from '../utils/transpose.js';
 
 import './Sing.css';
@@ -389,7 +389,7 @@ export default function Sing() {
   const showTranspose = showChords && hasChordSheet;
 
   const easyNote = easyMode && easyVersion.available
-    ? (selectedSong?.language === 'he' ? easyVersion.noteHe : easyVersion.noteEn)
+    ? formatEasyDisplayNote(easyVersion, transposeSemitones, selectedSong?.language || 'en')
     : null;
 
   const embedUrl = showYoutube && selectedSong?.youtube_url

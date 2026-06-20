@@ -9,6 +9,7 @@ for the full field documentation.
 
 from __future__ import annotations
 
+import re
 from typing import NamedTuple
 
 
@@ -95,6 +96,70 @@ def _build_canonical_map() -> dict[str, str]:
 
 
 SUFFIX_TO_CANONICAL = _build_canonical_map()
+
+NON_DETECTABLE_ALIASES = frozenset({"M"})
+
+_aliases_longest_first = sorted(
+    (
+        alias
+        for entry in CHORD_SUFFIXES
+        for alias in entry.aliases
+        if alias and alias not in NON_DETECTABLE_ALIASES
+    ),
+    key=len,
+    reverse=True,
+)
+
+CHORD_SUFFIX_PATTERN = "(?:" + "|".join(re.escape(alias) for alias in _aliases_longest_first) + ")?"
+
+CHORD_ROOT_PATTERN = r"[A-G][#b]?"
+CHORD_TOKEN_PATTERN = re.compile(
+    rf"\b({CHORD_ROOT_PATTERN}{CHORD_SUFFIX_PATTERN}(?:/{CHORD_ROOT_PATTERN})?)\b"
+)
+
+
+def is_minor_intervals(intervals: tuple[int, ...]) -> bool:
+    return 3 in intervals and 4 not in intervals
+
+
+def triad_from_suffix(root: str, suffix: str) -> str:
+    """Reduce root+suffix to a major or minor triad name."""
+    if not suffix:
+        return root
+
+    canonical = SUFFIX_TO_CANONICAL.get(suffix)
+    if canonical is None:
+        canonical = SUFFIX_TO_CANONICAL.get(suffix.lower())
+
+    if canonical is not None:
+        entry = SUFFIX_BY_CANONICAL[canonical]
+        if is_minor_intervals(entry.intervals):
+            return f"{root}m"
+        return root
+
+    lowered = suffix.lower()
+    if lowered.startswith("maj") or suffix == "M":
+        return root
+    if "dim" in lowered:
+        return f"{root}m"
+    if "aug" in lowered:
+        return root
+    if lowered.startswith("m") or lowered.startswith("min"):
+        return f"{root}m"
+    return root
+
+
+def simplify_chord_to_triad(chord: str) -> str:
+    """Simplify a chord token to its major or minor triad (slash bass preserved)."""
+    if "/" in chord:
+        base, bass = chord.split("/", 1)
+        return f"{simplify_chord_to_triad(base)}/{bass}"
+
+    match = re.match(rf"^({CHORD_ROOT_PATTERN})(.*)$", chord, re.IGNORECASE)
+    if not match:
+        return chord
+    root, suffix = match.group(1), match.group(2)
+    return triad_from_suffix(root, suffix)
 
 
 def suffix_fallback_chain(canonical: str) -> list[str]:

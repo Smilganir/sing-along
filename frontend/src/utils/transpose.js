@@ -1,7 +1,11 @@
 /** Client-side port of backend/services/easy_chords.py transpose helpers. */
 
-const CHORD_PATTERN =
-  /\b([A-G][#b]?(?:m|maj|min|dim|aug|sus(?:2|4)?|add|maj7|m7|7|9|11|13)?(?:add(?:9|11)?)?)\b/g;
+import { CHORD_SUFFIX_PATTERN } from '../constants/chordSuffixes.js';
+
+export const CHORD_PATTERN = new RegExp(
+  `\\b([A-G][#b]?${CHORD_SUFFIX_PATTERN}(?:/[A-G][#b]?)?)\\b`,
+  'g',
+);
 
 const NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
@@ -39,6 +43,13 @@ export function extractChords(text) {
 }
 
 export function transposeChord(chord, semitones) {
+  if (chord.includes('/')) {
+    const slashIdx = chord.indexOf('/');
+    const base = chord.slice(0, slashIdx);
+    const bass = chord.slice(slashIdx + 1);
+    return `${transposeChord(base, semitones)}/${transposeChord(bass, semitones)}`;
+  }
+
   const match = chord.match(/^([A-G][#b]?)(.*)$/);
   if (!match) return chord;
 

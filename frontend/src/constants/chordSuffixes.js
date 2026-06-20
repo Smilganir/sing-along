@@ -149,3 +149,44 @@ export function suffixFallbackChain(canonical) {
   }
   return chain;
 }
+
+export function isMinorCanonical(canonical) {
+  const entry = SUFFIX_BY_CANONICAL.get(canonical);
+  if (!entry) return false;
+  return entry.intervals.includes(3) && !entry.intervals.includes(4);
+}
+
+const CHORD_ROOT_PATTERN = '[A-G][#b]?';
+
+function triadFromSuffix(root, suffix) {
+  if (!suffix) return root;
+
+  let canonical = SUFFIX_TO_CANONICAL[suffix];
+  if (canonical == null) canonical = SUFFIX_TO_CANONICAL[suffix.toLowerCase()];
+
+  if (canonical != null) {
+    return isMinorCanonical(canonical) ? `${root}m` : root;
+  }
+
+  const lowered = suffix.toLowerCase();
+  if (lowered.startsWith('maj') || suffix === 'M') return root;
+  if (lowered.includes('dim')) return `${root}m`;
+  if (lowered.includes('aug')) return root;
+  if (lowered.startsWith('m') || lowered.startsWith('min')) return `${root}m`;
+  return root;
+}
+
+/** Simplify a chord token to its major or minor triad (slash bass preserved). */
+export function simplifyChordToTriad(chord) {
+  if (chord.includes('/')) {
+    const slashIdx = chord.indexOf('/');
+    const base = chord.slice(0, slashIdx);
+    const bass = chord.slice(slashIdx + 1);
+    return `${simplifyChordToTriad(base)}/${bass}`;
+  }
+
+  const match = chord.match(new RegExp(`^(${CHORD_ROOT_PATTERN})(.*)$`, 'i'));
+  if (!match) return chord;
+  const [, root, suffix] = match;
+  return triadFromSuffix(root, suffix);
+}
