@@ -197,6 +197,9 @@ function isSkippableLine(trimmed) {
   if (/^פתיחה:/.test(trimmed)) return true;
   if (/^סיום:/.test(trimmed)) return true;
   if (/^(Intro|Verse|Chorus|Bridge|Outro|סיום):/i.test(trimmed)) return true;
+  if (/^Solo:?$/i.test(trimmed)) return true;
+  if (/^\(repeat\)$/i.test(trimmed)) return true;
+  if (/^\(Intro[\s\-]/i.test(trimmed)) return true;
   return false;
 }
 

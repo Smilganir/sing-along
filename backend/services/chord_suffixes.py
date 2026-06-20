@@ -30,6 +30,7 @@ CHORD_SUFFIXES: tuple[SuffixEntry, ...] = (
     SuffixEntry("aug", ("aug",), "aug", "aug", (0, 4, 8), "major"),
     SuffixEntry("sus2", ("sus2",), "sus2", "sus2", (0, 2, 7), "major"),
     SuffixEntry("sus4", ("sus4", "sus"), "sus4", "sus4", (0, 5, 7), "major"),
+    SuffixEntry("5", ("5",), None, None, (0, 7), "major"),
     # Sixths
     SuffixEntry("6", ("6",), "6", "6", (0, 4, 7, 9), "major"),
     SuffixEntry("m6", ("m6", "min6"), "m6", "m6", (0, 3, 7, 9), "minor"),

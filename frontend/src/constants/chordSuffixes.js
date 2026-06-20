@@ -27,6 +27,7 @@ export const CHORD_SUFFIXES = [
   { canonical: 'aug', aliases: ['aug'], db: 'aug', agc: 'aug', intervals: [0, 4, 8], parent: 'major' },
   { canonical: 'sus2', aliases: ['sus2'], db: 'sus2', agc: 'sus2', intervals: [0, 2, 7], parent: 'major' },
   { canonical: 'sus4', aliases: ['sus4', 'sus'], db: 'sus4', agc: 'sus4', intervals: [0, 5, 7], parent: 'major' },
+  { canonical: '5', aliases: ['5'], db: null, agc: null, intervals: [0, 7], parent: 'major' },
 
   // --- Sixths -------------------------------------------------------------
   { canonical: '6', aliases: ['6'], db: '6', agc: '6', intervals: [0, 4, 7, 9], parent: 'major' },
