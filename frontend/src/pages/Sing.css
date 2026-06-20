@@ -12,7 +12,7 @@
   --chord-diagram-string: var(--sing-muted);
   --chord-diagram-dot: var(--sing-accent);
   --chord-diagram-muted: var(--sing-muted);
-  --chord-diagram-open: var(--sing-chord);
+  --chord-diagram-open: var(--sing-muted);
   --chord-diagram-accent: var(--sing-chord);
   max-width: 1200px;
   margin: 0 auto;
@@ -816,9 +816,16 @@
 }
 
 .sing-chord-token {
+  color: var(--sing-chord, #93c5fd);
   cursor: help;
   border-radius: 0.15rem;
   outline: none;
+  font-weight: 700;
+}
+
+.sing-sheet-chords .sing-chord-fragment {
+  color: var(--sing-chord, #93c5fd);
+  font-weight: 700;
 }
 
 .sing-chord-token:hover,
@@ -830,6 +837,18 @@
 }
 
 .sing-chord-diagram-popover {
+  --sing-text: #e2e8f0;
+  --sing-muted: #94a3b8;
+  --sing-border: #334155;
+  --sing-accent: #60a5fa;
+  --sing-chord: #93c5fd;
+  --chord-diagram-text: var(--sing-text);
+  --chord-diagram-fret: var(--sing-border);
+  --chord-diagram-string: var(--sing-muted);
+  --chord-diagram-dot: var(--sing-accent);
+  --chord-diagram-muted: var(--sing-muted);
+  --chord-diagram-open: var(--sing-muted);
+  --chord-diagram-accent: var(--sing-chord);
   position: fixed;
   z-index: 1200;
   padding: 0.5rem 0.6rem 0.45rem;
@@ -840,6 +859,7 @@
   pointer-events: auto;
   text-align: center;
   overflow: visible;
+  color: var(--sing-text);
 }
 
 .sing-chord-diagram-img,
@@ -848,6 +868,21 @@
   width: 180px;
   max-width: min(72vw, 230px);
   margin-inline: auto;
+  overflow: visible;
+}
+
+.sing-chord-diagram-local {
+  display: block;
+  margin-inline: auto;
+  overflow: visible;
+}
+
+.sing-chord-diagram-local .chord-name-label {
+  display: none;
+}
+
+.sing-chord-diagram-local .chord-diagram svg {
+  display: block;
   overflow: visible;
 }
 
@@ -871,6 +906,13 @@
 .sing-chord-diagram-missing {
   margin: 0.35rem 0.5rem;
   font-size: 0.82rem;
+  color: var(--sing-muted);
+}
+
+.sing-chord-diagram-note {
+  margin: 0.1rem 0 0.25rem;
+  font-size: 0.7rem;
+  text-align: center;
   color: var(--sing-muted);
 }
 

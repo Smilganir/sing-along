@@ -32,7 +32,7 @@ function ChordLine({ line, lyricLine, useNeginaHebrewLayout }) {
             </span>
           );
         }
-        return <span key={index}>{token.text}</span>;
+        return <span key={index} className="sing-chord-fragment">{token.text}</span>;
       })}
     </pre>
   );

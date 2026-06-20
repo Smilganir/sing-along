@@ -18,6 +18,11 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           proxyTimeout: 600000,
         },
+        '/agc-proxy': {
+          target: 'https://www.all-guitar-chords.com',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/agc-proxy/, ''),
+        },
       },
     },
     preview: {
@@ -27,6 +32,11 @@ export default defineConfig(({ mode }) => {
           target: 'http://127.0.0.1:8000',
           changeOrigin: true,
           proxyTimeout: 600000,
+        },
+        '/agc-proxy': {
+          target: 'https://www.all-guitar-chords.com',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/agc-proxy/, ''),
         },
       },
     },

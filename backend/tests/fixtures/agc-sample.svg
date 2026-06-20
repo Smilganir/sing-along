@@ -1,0 +1,17 @@
+<svg width='230' height='230' xmlns='http://www.w3.org/2000/svg'>
+<rect x='0' y='0' width='230' height='230' fill='#e1dce2'/>
+<rect x='40' y='30' width='150' height='160' fill='#e1dce2' stroke='black'/>
+<line x1='40' y1='30' x2='190' y2='30' stroke='black'/>
+<line x1='40' y1='70' x2='190' y2='70' stroke='black'/>
+<text x='20' y='61' font-size='12' font-family='Arial' fill='black'>1</text>
+<text x='20' y='101' font-size='12' font-family='Arial' fill='black'>2</text>
+<circle cx='70' cy='20' r='5' stroke='black' fill='none'/>
+<text x='150' y='26' font-size='20' font-family='Arial' fill='black'>X</text>
+<circle cx='100' cy='60' r='13' fill='gray' stroke='black'/>
+<text x='100' y='65' font-size='14' font-family='Arial' fill='black'>1</text>
+<circle cx='130' cy='100' r='13' fill='gray' stroke='black'/>
+<text x='130' y='105' font-size='14' font-family='Arial' fill='black'>3</text>
+<rect x='70' y='52' width='90' height='28' rx='14' fill='gray' stroke='black'/>
+<text x='70' y='221' font-size='12' font-family='Arial' fill='black'>E</text>
+<text x='100' y='221' font-size='12' font-family='Arial' fill='black'>A</text>
+</svg>

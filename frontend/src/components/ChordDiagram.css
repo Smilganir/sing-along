@@ -9,6 +9,6 @@
 }
 
 .chord-name-label {
-  fill: var(--chord-diagram-text);
+  fill: var(--chord-diagram-text, #e2e8f0);
   font-family: inherit;
 }

@@ -1,8 +1,20 @@
-const CHORD_TOKEN =
-  /^[A-G][#b]?(?:maj7|maj|min7|min|m7|m9|m11|m13|m|sus4|sus2|sus|add9|add11|add|dim7|dim|aug7|aug|6|7|9|11|13)?(?:\/[A-G][#b]?)?$/i;
+import { CHORD_SUFFIX_PATTERN } from '../constants/chordSuffixes.js';
+
+// Derived from the canonical suffix vocabulary (already sorted longest-first so
+// m7b5 beats m7 and maj7 beats maj). Keeping detection and diagram resolution
+// fed by one list guarantees every highlighted chord can resolve a diagram.
+const CHORD_SUFFIX = CHORD_SUFFIX_PATTERN;
+
+const CHORD_ROOT = '[A-G][#b]?';
+const CHORD_BASS = '(?:/[A-G][#b]?)?';
+const CHORD_PATTERN_SOURCE = `${CHORD_ROOT}${CHORD_SUFFIX}${CHORD_BASS}`;
+
+const CHORD_TOKEN = new RegExp(`^${CHORD_PATTERN_SOURCE}$`, 'i');
+const CHORD_TOKEN_SCAN = new RegExp(`^(${CHORD_PATTERN_SOURCE})`, 'i');
 
 const DIRECTIVE = /^\{[^}]+\}$/;
 const HAS_LYRICS = /[\u0590-\u05FFa-zA-Z\u00C0-\u024F]/;
+const HAS_HEBREW = /[\u0590-\u05FF]/;
 
 export function isTabLine(line) {
   const trimmed = line.trim();
@@ -13,7 +25,15 @@ export function isTabLine(line) {
 }
 
 function normalizeChordToken(token) {
-  return token.replace(/^[(]+|[,;)]+$/g, '').replace(/\s*x\d+$/i, '');
+  return token
+    .replace(/\(([#b]?\d+)\)/gi, '$1')
+    .replace(/^[(]+|[,;)]+$/g, '')
+    .replace(/\s*x\d+$/i, '');
+}
+
+function isChordToken(token) {
+  const clean = normalizeChordToken(token);
+  return Boolean(clean && CHORD_TOKEN.test(clean));
 }
 
 function scanChordTokens(trimmed) {
@@ -27,9 +47,7 @@ function scanChordTokens(trimmed) {
     }
 
     const rest = trimmed.slice(index);
-    const match = rest.match(
-      /^([A-G][#b]?(?:maj7|maj|min7|min|m7|m9|m11|m13|m|sus4|sus2|sus|add9|add11|add|dim7|dim|aug7|aug|6|7|9|11|13)?(?:\/[A-G][#b]?)?)/i,
-    );
+    const match = rest.match(CHORD_TOKEN_SCAN);
     if (!match) {
       return null;
     }
@@ -93,14 +111,51 @@ export function tokenizeChordLine(line, { splitGluedChords = false } = {}) {
     }
 
     const clean = normalizeChordToken(text);
-    if (clean && CHORD_TOKEN.test(clean)) {
+    if (isChordToken(clean)) {
       tokens.push({ type: 'chord', text, chord: clean });
     } else {
       tokens.push({ type: 'text', text });
     }
   }
 
-  return tokens;
+  return mergeAdjacentChordFragments(tokens);
+}
+
+/** tab4u and others sometimes split m7b5 / 7b9 across tokens: "Bm7" + "b5". */
+function mergeAdjacentChordFragments(tokens) {
+  const out = [];
+
+  for (let i = 0; i < tokens.length; i += 1) {
+    const token = tokens[i];
+    if (token.type !== 'chord') {
+      out.push(token);
+      continue;
+    }
+
+    let combined = token.chord;
+    let display = token.text;
+    let j = i + 1;
+
+    while (j + 1 < tokens.length && tokens[j].type === 'space' && tokens[j + 1].type === 'text') {
+      const fragment = tokens[j + 1].text;
+      if (!/^[b#](?:5|9|11|13)$/.test(fragment)) break;
+      const candidate = combined + fragment;
+      if (!isChordToken(candidate)) break;
+      combined = candidate;
+      display += tokens[j].text + tokens[j + 1].text;
+      j += 2;
+    }
+
+    if (combined !== token.chord) {
+      out.push({ type: 'chord', text: display, chord: combined });
+      i = j - 1;
+      continue;
+    }
+
+    out.push(token);
+  }
+
+  return out;
 }
 
 export function isChordOnlyLine(line) {
@@ -112,11 +167,16 @@ export function isChordOnlyLine(line) {
     return true;
   }
 
-  const tokens = trimmed.split(/\s+/);
-  return tokens.every((token) => {
-    const clean = normalizeChordToken(token);
-    return clean && CHORD_TOKEN.test(clean);
-  });
+  const tokens = trimmed.split(/\s+/).filter(Boolean);
+  return tokens.length > 0 && tokens.every((token) => isChordToken(token));
+}
+
+/** ASCII-only line made entirely of chord symbols (catches odd spellings). */
+function isAsciiChordLine(trimmed) {
+  if (!trimmed || HAS_HEBREW.test(trimmed)) return false;
+  const tokens = trimmed.split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return false;
+  return tokens.every((token) => isChordToken(token));
 }
 
 function normalizeText(text) {
@@ -149,6 +209,7 @@ function isTabLikeContent(line) {
 
 function isLyricLine(trimmed) {
   if (isChordOnlyLine(trimmed)) return false;
+  if (isAsciiChordLine(trimmed)) return false;
   if (!HAS_LYRICS.test(trimmed)) return false;
   return true;
 }
@@ -166,6 +227,7 @@ function pushBlock(
   { lyricsOnly = false, showChords = true, allowChordOnly = false } = {},
 ) {
   if (lyricsOnly && !lyrics) return;
+  if (lyricsOnly && lyrics && isAsciiChordLine(lyrics.trim())) return;
   if (!chords && !lyrics) return;
   if (showChords && !lyricsOnly && chords && !lyrics && !allowChordOnly) return;
   blocks.push({
