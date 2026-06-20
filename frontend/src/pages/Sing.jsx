@@ -377,6 +377,13 @@ export default function Sing() {
   }, [selectedSong?.id, easyMode]);
 
   useEffect(() => {
+    const container = sheetWrapRef.current;
+    if (!container) return;
+    container.scrollTop = 0;
+    suppressScrollUntil.current = Date.now() + SUPPRESS_SCROLL_MS;
+  }, [selectedSong?.id, sheetText, showYoutube]);
+
+  useEffect(() => {
     if (lyricsOnly) setEasyMode(false);
   }, [lyricsOnly]);
 
@@ -393,7 +400,9 @@ export default function Sing() {
     : null;
 
   const embedUrl = showYoutube && selectedSong?.youtube_url
-    ? youtubeEmbedUrl(selectedSong.youtube_url)
+    ? youtubeEmbedUrl(selectedSong.youtube_url, {
+        origin: typeof window !== 'undefined' ? window.location.origin : undefined,
+      })
     : null;
 
   return (
@@ -784,6 +793,7 @@ export default function Sing() {
                     title={`YouTube: ${selectedSong.title}`}
                     src={embedUrl}
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    referrerPolicy="strict-origin-when-cross-origin"
                     allowFullScreen
                   />
                 </div>

@@ -306,13 +306,17 @@ export function lyricAnchorHash(lyrics) {
   return (hash >>> 0).toString(36);
 }
 
-export function youtubeEmbedUrl(youtubeUrl) {
+export function youtubeEmbedUrl(youtubeUrl, { origin } = {}) {
   if (!youtubeUrl) return null;
   try {
     const url = new URL(youtubeUrl);
     const id = url.searchParams.get('v') || url.pathname.split('/').pop();
     if (!id || id.length < 6) return null;
-    return `https://www.youtube.com/embed/${id}`;
+    const embed = new URL(`https://www.youtube-nocookie.com/embed/${id}`);
+    if (origin) {
+      embed.searchParams.set('origin', origin);
+    }
+    return embed.toString();
   } catch {
     return null;
   }

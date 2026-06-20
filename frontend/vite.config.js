@@ -1,3 +1,4 @@
+import basicSsl from '@vitejs/plugin-basic-ssl';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
@@ -7,11 +8,16 @@ export default defineConfig(({ mode }) => {
 
   return {
     base,
-    plugins: [react()],
+    plugins: [react(), ...(isProd ? [] : [basicSsl()])],
     server: {
       host: '127.0.0.1',
       port: 5175,
       strictPort: true,
+      // Match prod (HTTPS GitHub Pages): YouTube embeds need a valid Referer.
+      https: !isProd,
+      headers: {
+        'Referrer-Policy': 'strict-origin-when-cross-origin',
+      },
       proxy: {
         '/api': {
           target: 'http://127.0.0.1:8000',

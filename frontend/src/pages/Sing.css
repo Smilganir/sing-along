@@ -744,14 +744,19 @@
 }
 
 .sing-youtube {
+  position: relative;
+  width: 100%;
   margin-bottom: 1rem;
   border-radius: 12px;
   overflow: hidden;
   aspect-ratio: 16 / 9;
+  max-height: min(56.25vw, 42vh);
   background: #000;
 }
 
 .sing-youtube iframe {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   border: 0;
@@ -765,6 +770,12 @@
   overflow-x: hidden;
   min-width: 0;
   -webkit-overflow-scrolling: touch;
+  background: var(--sing-bg);
+  color: var(--sing-text);
+}
+
+.sing-main:has(.sing-youtube) .sing-sheet-wrap {
+  max-height: min(calc(100vh - 14rem), 52vh);
 }
 
 .sing-sheet {
@@ -794,7 +805,7 @@
   margin: 0;
   padding: 0;
   white-space: pre-wrap;
-  background: transparent;
+  background-color: transparent;
   border: 0;
   overflow-x: visible;
   overflow-wrap: anywhere;
